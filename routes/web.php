@@ -1,0 +1,113 @@
+<?php
+
+use App\Http\Controllers\Auth\AuthenticatedSessionController;
+use App\Http\Controllers\DashboardController;
+use App\Http\Controllers\JobRoleController;
+use App\Http\Controllers\PerusahaanController;
+use App\Http\Controllers\ProfileController;
+use App\Http\Controllers\ProjekController;
+use App\Http\Controllers\TaskController;
+use App\Http\Controllers\TugasController;
+use App\Http\Controllers\UserController;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Route;
+use Illuminate\Support\Facades\Auth;
+
+// Route untuk guest (belum login)
+Route::middleware('guest')->group(function () {
+    Route::get('login', [AuthenticatedSessionController::class, 'create'])
+        ->name('login');
+    
+    Route::post('login', [AuthenticatedSessionController::class, 'store']);
+});
+
+// Route untuk user yang sudah login
+Route::middleware('auth')->group(function () {
+    Route::get('/dashboard', [DashboardController::class, 'index'])
+        ->name('dashboard');
+    
+    // Dashboard untuk pegawai
+    Route::get('/dashboard/pegawai', [DashboardController::class, 'index3'])
+        ->name('dashboard.pegawai');
+    
+    // Dashboard untuk admin
+    Route::get('/dashboard/klien', [DashboardController::class, 'index4'])
+        ->name('dashboard.klien');
+
+    Route::get('/kelolatask', [TaskController::class, 'index'])
+        ->name('dashboard.kelolatask');
+
+    Route::get('/taskkaryawan', [TaskController::class, 'index2'])
+        ->name('dashboard.taskkaryawan');
+
+    Route::get('/kelolaproject', [TaskController::class, 'kelolaproject'])
+        ->name('dashboard.kelolaproject');
+    
+    Route::post('logout', [AuthenticatedSessionController::class, 'destroy'])
+        ->name('logout');
+});
+Route::get('/forgot-password', function () {
+    return view('auth.forgot-password');
+})->name('password.request');
+
+Route::post('/forgot-password', function (Request $request) {
+    // Logic reset password
+})->name('password.email');
+
+// Master Data Users
+Route::prefix('master-data-users')->name('master-data-users.')->group(function () {
+    Route::get('/', [UserController::class, 'index'])->name('index');
+    Route::post('/', [UserController::class, 'store'])->name('store');
+    Route::put('/{user}', [UserController::class, 'update'])->name('update');
+    Route::delete('/{user}', [UserController::class, 'destroy'])->name('destroy');
+});
+
+// Profile Routes
+Route::middleware(['auth'])->group(function () {
+    Route::get('/profile', [ProfileController::class, 'index'])->name('profile.index');
+    Route::put('/profile/update', [ProfileController::class, 'updateProfile'])->name('profile.update');
+    Route::put('/profile/update-password', [ProfileController::class, 'updatePassword'])->name('profile.update-password');
+    Route::delete('/profile/deactivate', [ProfileController::class, 'deactivate'])->name('profile.deactivate');
+});
+
+// Master Data Perusahaan
+Route::middleware(['auth'])->group(function () {
+    Route::resource('master-data-perusahaan', PerusahaanController::class)->names([
+        'index' => 'master-data-perusahaan.index',
+        'store' => 'master-data-perusahaan.store',
+        'update' => 'master-data-perusahaan.update',
+        'destroy' => 'master-data-perusahaan.destroy',
+    ]);
+});
+
+// Route untuk Master Data Project
+Route::middleware(['auth'])->group(function () {
+    Route::get('/master-data-projek', [ProjekController::class, 'index'])->name('master-data-projek.index');
+    Route::post('/master-data-projek', [ProjekController::class, 'store'])->name('master-data-projek.store');
+    Route::put('/master-data-projek/{projek}', [ProjekController::class, 'update'])->name('master-data-projek.update');
+    Route::delete('/master-data-projek/{projek}', [ProjekController::class, 'destroy'])->name('master-data-projek.destroy');
+});
+
+
+// Master Data Tugas
+Route::prefix('master-data-tugas')->name('master-data-tugas.')->group(function () {
+    Route::get('/', [TugasController::class, 'index'])->name('index');
+    Route::post('/', [TugasController::class, 'store'])->name('store');
+    Route::put('/{id}', [TugasController::class, 'update'])->name('update');
+    Route::delete('/{id}', [TugasController::class, 'destroy'])->name('destroy');
+});
+
+// Master Data Job Role - TAMBAHKAN ROUTE UPDATE-STATUS
+Route::prefix('master-data-jobrole')->name('master-data-jobrole.')->group(function () {
+    Route::get('/', [JobRoleController::class, 'index'])->name('index');
+    Route::post('/', [JobRoleController::class, 'store'])->name('store');
+    Route::put('/{id}', [JobRoleController::class, 'update'])->name('update');
+    Route::put('/{id}/status', [JobRoleController::class, 'updateStatus'])->name('update-status');
+    Route::delete('/{id}', [JobRoleController::class, 'destroy'])->name('destroy');
+    
+});
+
+// Redirect root ke dashboard jika sudah login, atau ke login jika belum
+Route::get('/', function () {
+    return Auth::check() ? redirect()->route('dashboard') : redirect()->route('login');
+});
