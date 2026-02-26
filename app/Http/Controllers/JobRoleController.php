@@ -6,6 +6,7 @@ use App\Models\JobRole;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\ValidationException;
 
 class JobRoleController extends Controller
 {
@@ -25,7 +26,7 @@ class JobRoleController extends Controller
         $inactiveCount = JobRole::where('status', false)->count();
 
         // Sort by recent activity
-        $query->latest('diubah_pada');
+        $query->latest('diperbarui_pada');
 
         // Paginate
         $perPage = $request->get('per_page', 10);
@@ -83,7 +84,7 @@ class JobRoleController extends Controller
                 'deskripsi' => $validated['deskripsi'],
                 'status' => $validated['status'],
                 'dibuat_pada' => now(),
-                'diubah_pada' => now()
+                'diperbarui_pada' => now()
             ]);
 
             DB::commit();
@@ -105,7 +106,7 @@ class JobRoleController extends Controller
      */
     public function update(Request $request, $id)
     {
-        $jobRole = JobRole::findOrFail($id);
+        $jobRole = JobRole::withCount('users')->findOrFail($id);
 
         $validated = $request->validate([
             'nama_job_role' => 'required|string|max:100|unique:job_roles,nama_job_role,' . $id . ',id_job_role',
@@ -121,11 +122,18 @@ class JobRoleController extends Controller
         try {
             DB::beginTransaction();
 
+            // CEK VALIDASI: Jika job role memiliki karyawan dan ingin dinonaktifkan
+            if ($jobRole->users_count > 0 && $validated['status'] == 0) {
+                throw ValidationException::withMessages([
+                    'status' => "Job role tidak dapat dinonaktifkan karena masih memiliki {$jobRole->users_count} karyawan yang terikat!"
+                ]);
+            }
+
             $jobRole->update([
                 'nama_job_role' => $validated['nama_job_role'],
                 'deskripsi' => $validated['deskripsi'],
                 'status' => $validated['status'],
-                'diubah_pada' => now()
+                'diperbarui_pada' => now()
             ]);
 
             DB::commit();
@@ -133,6 +141,9 @@ class JobRoleController extends Controller
             return redirect()
                 ->route('master-data-jobrole.index')
                 ->with('success', 'Data job role berhasil diperbarui!');
+        } catch (ValidationException $e) {
+            DB::rollBack();
+            throw $e;
         } catch (\Exception $e) {
             DB::rollBack();
             return redirect()
@@ -152,11 +163,11 @@ class JobRoleController extends Controller
 
             $jobRole = JobRole::withCount('users')->findOrFail($id);
 
-            // Check if job role has users
+            // CEK VALIDASI: Jika job role memiliki karyawan, tidak bisa dihapus
             if ($jobRole->users_count > 0) {
                 return redirect()
                     ->back()
-                    ->with('error', "Job role tidak dapat dihapus karena masih memiliki {$jobRole->users_count} karyawan!");
+                    ->with('error', "Job role tidak dapat dihapus karena masih memiliki {$jobRole->users_count} karyawan yang terikat! Silahkan pindahkan atau hapus karyawan tersebut terlebih dahulu.");
             }
 
             $jobRole->delete();
@@ -172,5 +183,35 @@ class JobRoleController extends Controller
                 ->back()
                 ->with('error', 'Terjadi kesalahan: ' . $e->getMessage());
         }
+    }
+
+    /**
+     * Get job roles for dropdown (API endpoint)
+     */
+    public function getForDropdown(Request $request)
+    {
+        $query = JobRole::where('status', true);
+
+        if ($request->filled('search')) {
+            $query->where('nama_job_role', 'like', '%' . $request->search . '%');
+        }
+
+        $jobRoles = $query->orderBy('nama_job_role')
+            ->get(['id_job_role', 'nama_job_role']);
+
+        return response()->json($jobRoles);
+    }
+
+    /**
+     * Check if job role has employees
+     */
+    public function checkEmployees($id)
+    {
+        $jobRole = JobRole::withCount('users')->findOrFail($id);
+
+        return response()->json([
+            'has_employees' => $jobRole->users_count > 0,
+            'count' => $jobRole->users_count
+        ]);
     }
 }

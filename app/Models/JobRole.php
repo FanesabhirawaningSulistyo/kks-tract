@@ -20,13 +20,13 @@ class JobRole extends Model
         'deskripsi',
         'status',
         'dibuat_pada',
-        'diubah_pada'
+        'diperbarui_pada'
     ];
 
     // Cast tanggal
     protected $casts = [
         'dibuat_pada' => 'datetime',
-        'diubah_pada' => 'datetime',
+        'diperbarui_pada' => 'datetime',
         'status' => 'boolean'
     ];
 

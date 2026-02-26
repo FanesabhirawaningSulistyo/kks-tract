@@ -12,17 +12,19 @@ return new class extends Migration
             $table->bigIncrements('id_tim');
             $table->unsignedBigInteger('id_projek');
             $table->unsignedBigInteger('id_user');
-            $table->string('job_role_projek', 100)->nullable();
             $table->timestamp('dibuat_pada')->useCurrent();
-            $table->timestamp('diubah_pada')->useCurrent()->useCurrentOnUpdate();
+            $table->timestamp('diperbarui_pada')->useCurrent()->useCurrentOnUpdate();
 
-            // Relasi ke projek
+            // Mencegah 1 user masuk tim yang sama lebih dari sekali
+            $table->unique(['id_projek', 'id_user']);
+
+            // FK ke projek
             $table->foreign('id_projek')
                 ->references('id_projek')
                 ->on('projek')
                 ->onDelete('cascade');
 
-            // Relasi ke users
+            // FK ke users
             $table->foreign('id_user')
                 ->references('id_user')
                 ->on('users')

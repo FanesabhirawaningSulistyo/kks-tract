@@ -10,7 +10,7 @@ class User extends Authenticatable
 {
     use HasFactory, Notifiable;
 
-    protected $table = 'users';
+    protected $table      = 'users';
     protected $primaryKey = 'id_user';
 
     protected $fillable = [
@@ -24,17 +24,14 @@ class User extends Authenticatable
         'status',
     ];
 
-    protected $hidden = [
-        'password',
-        'remember_token',
-    ];
+    protected $hidden = ['password', 'remember_token'];
 
     protected $casts = [
         'email_verified_at' => 'datetime',
-        'password' => 'hashed',
-        'status' => 'boolean',
-        'created_at' => 'datetime',
-        'updated_at' => 'datetime',
+        'password'          => 'hashed',
+        'status'            => 'boolean',
+        'created_at'        => 'datetime',
+        'updated_at'        => 'datetime',
     ];
 
     public function getRouteKeyName()
@@ -42,70 +39,54 @@ class User extends Authenticatable
         return 'id_user';
     }
 
-    /**
-     * Relasi ke JobRole
-     */
     public function jobRole()
     {
         return $this->belongsTo(JobRole::class, 'id_job_role', 'id_job_role');
     }
 
-    /**
-     * Relasi ke Perusahaan (sebagai perwakilan)
-     */
     public function perusahaan()
     {
         return $this->hasOne(Perusahaan::class, 'id_user_perusahaan', 'id_user');
     }
 
-    /**
-     * Cek role user
-     */
+    /* ── Role checks ── */
+    // ✅ FIX: 'PM' uppercase sesuai enum di migration
     public function isAdmin(): bool
     {
         return $this->role === 'admin';
     }
-
     public function isPM(): bool
     {
-        return $this->role === 'pm';
+        return $this->role === 'PM';
     }
-
     public function isKaryawan(): bool
     {
         return $this->role === 'karyawan';
     }
-
     public function isKlien(): bool
     {
         return $this->role === 'klien';
     }
 
-    /**
-     * Scope untuk filter role
-     */
-    public function scopeAdmin($query)
+    /* ── Scopes ── */
+    public function scopeAdmin($q)
     {
-        return $query->where('role', 'admin');
+        return $q->where('role', 'admin');
     }
-
-    public function scopePM($query)
+    public function scopePM($q)
     {
-        return $query->where('role', 'pm');
+        return $q->where('role', 'PM');
+    }       // ✅ uppercase
+    public function scopeKaryawan($q)
+    {
+        return $q->where('role', 'karyawan');
     }
-
-    public function scopeKaryawan($query)
+    public function scopeKlien($q)
     {
-        return $query->where('role', 'karyawan');
+        return $q->where('role', 'klien');
     }
-
-    public function scopeKlien($query)
+    public function scopeAktif($q)
     {
-        return $query->where('role', 'klien');
-    }
-
-    public function scopeAktif($query)
-    {
-        return $query->where('status', true);
+        return $q->where('status', true);
     }
 }

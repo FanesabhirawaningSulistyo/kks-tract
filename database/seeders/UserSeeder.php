@@ -5,45 +5,22 @@ namespace Database\Seeders;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
+use App\Models\JobRole;
 
 class UserSeeder extends Seeder
 {
     public function run(): void
     {
-        // Ambil mapping: nama_job_role => id_job_role
-        $jobRoles = DB::table('job_roles')
-            ->pluck('id_job_role', 'nama_job_role');
+        // Pastikan job roles sudah ada
+        $jobRoles = JobRole::pluck('id_job_role', 'nama_job_role');
 
-        // Data perwakilan perusahaan (bukan user klien lagi)
-        $perwakilanData = [
-            ['nama' => 'Ahmad Wijaya', 'email' => 'ahmad.wijaya@gmail.com', 'no_hp' => '081234567801'],
-            ['nama' => 'Siti Nurhaliza', 'email' => 'siti.nurhaliza@yahoo.com', 'no_hp' => '081234567802'],
-            ['nama' => 'Bambang Susanto', 'email' => 'bambang.susanto@outlook.com', 'no_hp' => '081234567803'],
-            ['nama' => 'Dewi Lestari', 'email' => 'dewi.lestari@company.co.id', 'no_hp' => '081234567804'],
-            ['nama' => 'Eko Prasetyo', 'email' => 'eko.prasetyo@business.id', 'no_hp' => '081234567805'],
-            ['nama' => 'Fitri Handayani', 'email' => 'fitri.handayani@gmail.com', 'no_hp' => '081234567806'],
-            ['nama' => 'Gunawan Setiawan', 'email' => 'gunawan.setiawan@yahoo.com', 'no_hp' => '081234567807'],
-            ['nama' => 'Heni Kusuma', 'email' => 'heni.kusuma@outlook.com', 'no_hp' => '081234567808'],
-            ['nama' => 'Indra Wijaya', 'email' => 'indra.wijaya@company.co.id', 'no_hp' => '081234567809'],
-            ['nama' => 'Julia Rahmawati', 'email' => 'julia.rahmawati@business.id', 'no_hp' => '081234567810'],
-        ];
+        if ($jobRoles->isEmpty()) {
+            $this->command->error('❌ Job roles not found! Run JobRoleSeeder first.');
+            return;
+        }
 
-        // Data perusahaan untuk user klien
-        $perusahaanUserData = [
-            ['nama' => 'PT Abadi Jaya', 'email' => 'info@abadi-jaya.co.id', 'telepon' => '021-5234567'],
-            ['nama' => 'PT Makmur Sentosa', 'email' => 'contact@makmursentosa.com', 'telepon' => '021-5678901'],
-            ['nama' => 'PT Sejahtera Bersama', 'email' => 'info@sejahterabersama.co.id', 'telepon' => '021-8765432'],
-            ['nama' => 'PT Surya Mandiri', 'email' => 'corporate@suryamandiri.com', 'telepon' => '021-7890123'],
-            ['nama' => 'PT Bintang Emas', 'email' => 'hello@bintangemas.co.id', 'telepon' => '021-6543210'],
-            ['nama' => 'PT Cahaya Utama', 'email' => 'admin@cahayautama.com', 'telepon' => '021-4321098'],
-            ['nama' => 'PT Maju Jaya', 'email' => 'info@majujaya.co.id', 'telepon' => '021-3210987'],
-            ['nama' => 'PT Global Tech', 'email' => 'contact@globaltech.co.id', 'telepon' => '021-2109876'],
-            ['nama' => 'PT Nusantara Indah', 'email' => 'info@nusantaraindah.com', 'telepon' => '021-1098765'],
-            ['nama' => 'PT Karya Bangsa', 'email' => 'corporate@karyabangsa.co.id', 'telepon' => '021-9876543'],
-        ];
-
-        DB::table('users')->insert([
-            // ===== ADMIN =====
+        $users = [
+            // ADMIN
             [
                 'nama' => 'Admin Sistem',
                 'email' => 'admin@kks.com',
@@ -56,12 +33,12 @@ class UserSeeder extends Seeder
                 'created_at' => now(),
                 'updated_at' => now(),
             ],
-            // ===== PROJECT MANAGER =====
+            // PROJECT MANAGER
             [
                 'nama' => 'Andi Prasetyo',
                 'email' => 'pm@kks.com',
                 'password' => Hash::make('password123'),
-                'role' => 'pm',
+                'role' => 'pm', // Pakai pm (huruf besar)
                 'id_job_role' => $jobRoles['Project Manager'] ?? null,
                 'no_hp' => '081233344455',
                 'foto' => null,
@@ -69,7 +46,19 @@ class UserSeeder extends Seeder
                 'created_at' => now(),
                 'updated_at' => now(),
             ],
-            // ===== KARYAWAN =====
+            [
+                'nama' => 'Siti nurul',
+                'email' => 'nurul@kks.com',
+                'password' => Hash::make('password123'),
+                'role' => 'pm', // Pakai pm (huruf besar)
+                'id_job_role' => $jobRoles['Project Manager'] ?? null,
+                'no_hp' => '081233344455',
+                'foto' => null,
+                'status' => true,
+                'created_at' => now(),
+                'updated_at' => now(),
+            ],
+            // KARYAWAN
             [
                 'nama' => 'Rizki Ramadhan',
                 'email' => 'rizki@kks.com',
@@ -106,31 +95,26 @@ class UserSeeder extends Seeder
                 'created_at' => now(),
                 'updated_at' => now(),
             ],
-        ]);
+        ];
 
-        // ===== 10 USER KLIEN (Data Perusahaan) =====
-        // User ini akan berisi: nama perusahaan, email perusahaan, telepon perusahaan
-        foreach ($perusahaanUserData as $perusahaan) {
-            DB::table('users')->insert([
-                'nama' => $perusahaan['nama'], // NAMA PERUSAHAAN
-                'email' => $perusahaan['email'], // EMAIL PERUSAHAAN
-                'password' => Hash::make('password123'),
-                'role' => 'klien',
-                'id_job_role' => $jobRoles['Klien'] ?? null,
-                'no_hp' => $perusahaan['telepon'], // TELEPON PERUSAHAAN
-                'foto' => null,
-                'status' => true,
-                'created_at' => now(),
-                'updated_at' => now(),
-            ]);
+        foreach ($users as $user) {
+            DB::table('users')->updateOrInsert(
+                ['email' => $user['email']],
+                $user
+            );
         }
 
-        echo "✓ User seeder completed: " . DB::table('users')->count() . " users created\n";
+        $totalUsers = DB::table('users')->count();
+        $this->command->info("✓ UserSeeder completed: {$totalUsers} total users");
 
-        // Validasi user klien
-        $klienCount = DB::table('users')
-            ->where('role', 'klien')
-            ->count();
-        echo "✓ User klien (perusahaan): {$klienCount} users\n";
+        // Tampilkan statistik
+        $stats = DB::table('users')
+            ->select('role', DB::raw('count(*) as total'))
+            ->groupBy('role')
+            ->get();
+
+        foreach ($stats as $stat) {
+            $this->command->line("  - {$stat->role}: {$stat->total} users");
+        }
     }
 }

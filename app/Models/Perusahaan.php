@@ -9,28 +9,75 @@ class Perusahaan extends Model
 {
     use HasFactory;
 
-    protected $table = 'perusahaan';
+    protected $table      = 'perusahaan';
     protected $primaryKey = 'id_perusahaan';
 
     const CREATED_AT = 'dibuat_pada';
     const UPDATED_AT = 'diperbarui_pada';
 
     protected $fillable = [
-        'id_user_perusahaan',    // FK ke users (berisi data perusahaan)
-        'nama_perwakilan',       // Nama PIC
-        'email_perwakilan',      // Email PIC
-        'telepon_perwakilan',    // Telepon PIC
+        'id_user_perusahaan',
+        'nama_perusahaan',      // ← disimpan di sini juga untuk sinkronisasi
+        'email_perusahaan',     // ← disimpan di sini juga untuk sinkronisasi
+        'telepon_perusahaan',   // ← disimpan di sini juga untuk sinkronisasi
+        'nama_perwakilan',
+        'email_perwakilan',
+        'telepon_perwakilan',
         'logo_perusahaan',
         'alamat_perusahaan',
     ];
 
     protected $casts = [
-        'dibuat_pada' => 'datetime',
+        'dibuat_pada'    => 'datetime',
         'diperbarui_pada' => 'datetime',
     ];
 
+    // =========================================================
+    // MODEL EVENTS — Sinkronisasi otomatis ke tabel users
+    // =========================================================
+    protected static function booted(): void
+    {
+        // Saat perusahaan dibuat → buat/update user terkait
+        static::created(function (Perusahaan $perusahaan) {
+            $perusahaan->syncToUser();
+        });
+
+        // Saat perusahaan diupdate → update user terkait
+        static::updated(function (Perusahaan $perusahaan) {
+            $perusahaan->syncToUser();
+        });
+    }
+
     /**
-     * Relasi ke User (data perusahaan: nama, email, telepon perusahaan)
+     * Sinkronisasi nama, email, telepon perusahaan ke tabel users
+     */
+    public function syncToUser(): void
+    {
+        if (!$this->id_user_perusahaan) return;
+
+        $updateData = [];
+
+        if ($this->isDirty('nama_perusahaan') || $this->nama_perusahaan) {
+            $updateData['nama'] = $this->nama_perusahaan;
+        }
+        if ($this->isDirty('email_perusahaan') || $this->email_perusahaan) {
+            $updateData['email'] = $this->email_perusahaan;
+        }
+        if ($this->isDirty('telepon_perusahaan') || $this->telepon_perusahaan) {
+            $updateData['no_hp'] = $this->telepon_perusahaan;
+        }
+
+        if (!empty($updateData)) {
+            User::where('id_user', $this->id_user_perusahaan)->update($updateData);
+        }
+    }
+
+    // =========================================================
+    // RELATIONS
+    // =========================================================
+
+    /**
+     * Relasi ke User (akun login perusahaan)
      */
     public function userPerusahaan()
     {
@@ -45,33 +92,41 @@ class Perusahaan extends Model
         return $this->hasMany(Projek::class, 'id_perusahaan', 'id_perusahaan');
     }
 
+    // =========================================================
+    // ACCESSORS — Ambil data perusahaan dari tabel users
+    // =========================================================
+
     /**
-     * Accessor untuk mendapatkan nama perusahaan (dari tabel users)
+     * Nama perusahaan: prioritas kolom lokal, fallback ke users
      */
-    public function getNamaPerusahaanAttribute()
+    public function getNamaPerusahaanAttribute(): ?string
     {
-        return $this->userPerusahaan ? $this->userPerusahaan->nama : null;
+        return $this->attributes['nama_perusahaan']
+            ?? ($this->userPerusahaan?->nama);
     }
 
     /**
-     * Accessor untuk mendapatkan email perusahaan (dari tabel users)
+     * Email perusahaan: prioritas kolom lokal, fallback ke users
      */
-    public function getEmailPerusahaanAttribute()
+    public function getEmailPerusahaanAttribute(): ?string
     {
-        return $this->userPerusahaan ? $this->userPerusahaan->email : null;
+        return $this->attributes['email_perusahaan']
+            ?? ($this->userPerusahaan?->email);
     }
 
     /**
-     * Accessor untuk mendapatkan telepon perusahaan (dari tabel users)
+     * Telepon perusahaan: prioritas kolom lokal, fallback ke users
      */
-    public function getTeleponPerusahaanAttribute()
+    public function getTeleponPerusahaanAttribute(): ?string
     {
-        return $this->userPerusahaan ? $this->userPerusahaan->no_hp : null;
+        return $this->attributes['telepon_perusahaan']
+            ?? ($this->userPerusahaan?->no_hp);
     }
 
-    /**
-     * Scope untuk mencari perusahaan berdasarkan user
-     */
+    // =========================================================
+    // SCOPES
+    // =========================================================
+
     public function scopeDenganUser($query, $idUser)
     {
         return $query->where('id_user_perusahaan', $idUser);

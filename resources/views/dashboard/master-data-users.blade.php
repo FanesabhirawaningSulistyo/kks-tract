@@ -1,1993 +1,700 @@
 @extends('layouts.master')
 @section('title', 'Master Data Users')
+@push('styles')
+<link rel="stylesheet" href="{{ asset('assets/css/master-data.css') }}">
+@endpush
 @section('content')
-<div class="row">
-    <div class="col-12">
-        <!-- Header Section -->
-        <div class="d-flex justify-content-between align-items-center mb-4">
-            <div>
-                <h4 class="fw-semibold mb-1">Master Data Users</h4>
-                <p class="text-muted mb-0 small">Kelola data pengguna sistem</p>
-            </div>
-            <button type="button" class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#addUserModal">
-                <i class='bx bx-plus'></i> Tambah User
-            </button>
+<div class="page-header d-flex justify-content-between align-items-start flex-wrap gap-3">
+    <div><h4>Master Data Users</h4><p>Kelola data pengguna sistem</p></div>
+    <button class="btn-main" data-bs-toggle="modal" data-bs-target="#addUserModal"><i class='bx bx-plus'></i> Tambah User</button>
+</div>
+@if(session('success') || session('error'))
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    @if(session('success'))
+    Swal.fire({ icon:'success', title:'Berhasil', text:'{{ session('success') }}', confirmButtonColor:'#5145cd', timer:3000, timerProgressBar:true, showConfirmButton:false });
+    @endif
+    @if(session('error'))
+    Swal.fire({ icon:'error', title:'Gagal', text:'{{ session('error') }}', confirmButtonColor:'#5145cd' });
+    @endif
+});
+</script>
+@endif
+<div class="data-card">
+    <div class="card-top">
+        <div class="counter-group">
+            <a href="javascript:void(0)" onclick="filterByJobRole('')" class="counter-pill active" data-jobrole="">
+                <span class="pill-count">{{ $totalCount ?? 0 }}</span><span>Semua User</span>
+            </a>
+            @foreach($allCounts as $c)
+                @if($c['count'] > 0)
+                <a href="javascript:void(0)" onclick="filterByJobRole('{{ $c['id'] }}')" class="counter-pill" data-jobrole="{{ $c['id'] }}">
+                    <span class="pill-count">{{ $c['count'] }}</span><span>{{ $c['name'] }}</span>
+                </a>
+                @endif
+            @endforeach
         </div>
-        
-        <!-- Table Card -->
-        <div class="card border-0 shadow-sm">
-            <div class="card-header bg-white border-0 py-3">
-                <form method="GET" action="{{ route('master-data-users.index') }}" id="filterForm">
-                    <div class="row g-3">
-                        <!-- Row 1: Job Role Counters -->
-                        <div class="col-12">
-                            <div class="d-flex align-items-center flex-wrap gap-2">
-                                <!-- Total User Counter -->
-                                <a href="javascript:void(0)" 
-                                   class="text-decoration-none job-role-filter"
-                                   data-job-role="">
-                                    <span class="badge-counter {{ !request()->has('job_role') || request('job_role') === '' ? 'active' : '' }}">
-                                        <span class="count">{{ $totalCount ?? 0 }}</span>
-                                        <span class="label">Semua User</span>
-                                    </span>
-                                </a>
-                                
-                                <!-- Job Role Counters -->
-                                @foreach($allCounts as $countData)
-                                    @if($countData['count'] > 0)
-                                        <a href="javascript:void(0)" 
-                                           class="text-decoration-none job-role-filter"
-                                           data-job-role="{{ $countData['id'] }}">
-                                            <span class="badge-counter {{ request('job_role') == $countData['id'] ? 'active' : '' }}">
-                                                <span class="count">{{ $countData['count'] }}</span>
-                                                <span class="label">{{ $countData['name'] }}</span>
-                                            </span>
-                                        </a>
-                                    @endif
-                                @endforeach
-                            </div>
-                        </div>
-                        
-                        <!-- Row 2: Filters -->
-                        <div class="col-12">
-                            <div class="d-flex flex-wrap align-items-center justify-content-between gap-2">
-                                <!-- Left side: Pagination -->
-                                <div class="d-flex align-items-center">
-                                    <label class="me-2 text-nowrap small fs-6">Tampilkan:</label>
-                                    <select name="per_page" id="perPageSelect" class="form-select fs-6" style="width: 80px;">
-                                        <option value="10" {{ request('per_page') == 10 ? 'selected' : '' }}>10</option>
-                                        <option value="25" {{ request('per_page') == 25 ? 'selected' : '' }}>25</option>
-                                        <option value="50" {{ request('per_page') == 50 ? 'selected' : '' }}>50</option>
-                                        <option value="100" {{ request('per_page') == 100 ? 'selected' : '' }}>100</option>
-                                    </select>
-                                </div>
-                                
-                                <!-- Right side: Role filter + Search + Column settings -->
-                                <div class="d-flex align-items-center gap-2">
-                                    <select name="role" id="roleSelect" class="form-select form-select-sm" style="width: auto;">
-                                        <option value="">Semua Role</option>
-                                        <option value="klien" {{ request('role') == 'klien' ? 'selected' : '' }}>Klien</option>
-                                        <option value="karyawan" {{ request('role') == 'karyawan' ? 'selected' : '' }}>Karyawan</option>
-                                        <option value="PM" {{ request('role') == 'PM' ? 'selected' : '' }}>Project Manager</option>
-                                        <option value="admin" {{ request('role') == 'admin' ? 'selected' : '' }}>Admin</option>
-                                    </select>
-                                    
-                                    <div class="search-box">
-                                        <i class='bx bx-search'></i>
-                                        <input type="text" name="search" id="searchInput" 
-                                               placeholder="Cari user..." 
-                                               value="{{ request('search') }}" 
-                                               autocomplete="off">
-                                        <button type="button" id="clearSearch" class="btn-clear-search" style="display: none;">
-                                            <i class='bx bx-x'></i>
-                                        </button>
-                                    </div>
-                                    
-                                    <button type="button" class="btn btn-sm btn-light" 
-                                            data-bs-toggle="modal" data-bs-target="#columnSettingsModal">
-                                        <i class='bx bx-cog'></i>
-                                    </button>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                    
-                    <input type="hidden" name="job_role" id="jobRoleInput" value="{{ request('job_role') }}">
-                </form>
+        <div class="toolbar">
+            <div class="toolbar-left">
+                <span class="label-sm">Tampilkan</span>
+                <select id="perPageSelect" class="ctrl" style="width:70px;">
+                    <option value="10">10</option><option value="25">25</option>
+                    <option value="50">50</option><option value="100">100</option>
+                </select>
+                <span class="label-sm">entri</span>
             </div>
-            
-            <div class="table-responsive">
-                <table class="table table-hover align-middle mb-0">
-                    <thead>
-                        <tr>
-                            <th class="column-no" style="width: 60px;">NO</th>
-                            <th class="column-nama sortable" data-column="nama" style="min-width: 250px;">
-                                <div class="d-flex align-items-center justify-content-between">
-                                    <span>NAMA</span>
-                                    <i class='bx bx-sort sort-icon'></i>
-                                </div>
-                            </th>
-                            <th class="column-job_role sortable" data-column="job_role" style="min-width: 150px;">
-                                <div class="d-flex align-items-center justify-content-between">
-                                    <span>JABATAN</span>
-                                    <i class='bx bx-sort sort-icon'></i>
-                                </div>
-                            </th>
-                            <th class="column-no_hp sortable" data-column="no_hp" style="min-width: 130px;">
-                                <div class="d-flex align-items-center justify-content-between">
-                                    <span>NO. HP</span>
-                                    <i class='bx bx-sort sort-icon'></i>
-                                </div>
-                            </th>
-                            <th class="column-role sortable" data-column="role" style="min-width: 120px;">
-                                <div class="d-flex align-items-center justify-content-between">
-                                    <span>ROLE</span>
-                                    <i class='bx bx-sort sort-icon'></i>
-                                </div>
-                            </th>
-                            <th class="column-status sortable" data-column="status" style="min-width: 100px;">
-                                <div class="d-flex align-items-center justify-content-between">
-                                    <span>STATUS</span>
-                                    <i class='bx bx-sort sort-icon'></i>
-                                </div>
-                            </th>
-                            <th class="column-created_at sortable" data-column="created_at" style="min-width: 140px;">
-                                <div class="d-flex align-items-center justify-content-between">
-                                    <span>DIBUAT</span>
-                                    <i class='bx bx-sort sort-icon'></i>
-                                </div>
-                            </th>
-                            <th class="column-updated_at sortable" data-column="updated_at" style="min-width: 140px;">
-                                <div class="d-flex align-items-center justify-content-between">
-                                    <span>DIUPDATE</span>
-                                    <i class='bx bx-sort sort-icon'></i>
-                                </div>
-                            </th>
-                            <th class="column-actions text-center" style="width: 120px;">AKSI</th>
-                        </tr>
-                    </thead>
-                    <tbody id="userTableBody">
-                        @forelse($users as $index => $user)
-                        @php
-                            $jobRole = $user->jobRole;
-                            $jobRoleName = $jobRole ? $jobRole->nama_job_role : '-';
-                            $jobRoleId = $jobRole ? $jobRole->id_job_role : '';
-                            $jobRoleColor = $user->jobRoleColor ?? 'default';
-                        @endphp
-                        <tr class="user-row" 
-                            data-id="{{ $user->id_user }}"
-                            data-original-index="{{ $index + 1 }}"
-                            data-role="{{ $user->role }}" 
-                            data-nama="{{ strtolower($user->nama) }}" 
-                            data-email="{{ strtolower($user->email) }}"
-                            data-job_role="{{ strtolower($jobRoleName) }}"
-                            data-job_role_id="{{ $jobRoleId }}"
-                            data-no_hp="{{ strtolower($user->no_hp ?? '') }}"
-                            data-status="{{ $user->status ? '1' : '0' }}"
-                            data-created_at="{{ $user->created_at ? $user->created_at->format('Y-m-d H:i:s') : '' }}"
-                            data-updated_at="{{ $user->updated_at ? $user->updated_at->format('Y-m-d H:i:s') : '' }}">
-                            <td class="column-no">
-                                <span class="row-number">{{ $index + 1 }}</span>
-                            </td>
-                            <td class="column-nama">
-                                <div class="d-flex align-items-center">
-                                    @if($user->foto)
-                                    <img src="{{ asset('storage/' . $user->foto) }}" 
-                                         alt="{{ $user->nama }}" 
-                                         class="avatar-img" 
-                                         onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
-                                    <div class="avatar-circle" style="display: none;">
-                                        {{ strtoupper(substr($user->nama, 0, 1)) }}
-                                    </div>
-                                    @else
-                                    <div class="avatar-circle">
-                                        {{ strtoupper(substr($user->nama, 0, 1)) }}
-                                    </div>
-                                    @endif
-                                    <div class="ms-3">
-                                        <div class="user-name">{{ $user->nama }}</div>
-                                        <div class="user-email">{{ $user->email }}</div>
-                                    </div>
-                                </div>
-                            </td>
-                            <td class="column-job_role">
-                                @if($jobRole)
-                                <span class="job-role-badge job-role-{{ $jobRoleColor }}">
-                                    {{ $jobRoleName }}
-                                </span>
-                                @else
-                                <span class="text-muted">-</span>
-                                @endif
-                            </td>
-                            <td class="column-no_hp">{{ $user->no_hp ?? '-' }}</td>
-                            <td class="column-role">
-                                @php
-                                    $roleConfig = [
-                                        'admin' => ['icon' => 'bx-crown', 'label' => 'Admin'],
-                                        'PM' => ['icon' => 'bx-briefcase', 'label' => 'PM'],
-                                        'karyawan' => ['icon' => 'bx-user', 'label' => 'Karyawan'],
-                                        'klien' => ['icon' => 'bx-shield-alt-2', 'label' => 'Klien']
-                                    ];
-                                    $config = $roleConfig[$user->role] ?? $roleConfig['karyawan'];
-                                @endphp
-                                <span class="role-badge">
-                                    <i class='bx {{ $config['icon'] }}'></i>
-                                    {{ $config['label'] }}
-                                </span>
-                            </td>
-                            <td class="column-status">
-                                @if($user->status)
-                                    <span class="status-badge status-active">
-                                        <i class='bx bx-check-circle'></i> Aktif
-                                    </span>
-                                @else
-                                    <span class="status-badge status-inactive">
-                                        <i class='bx bx-x-circle'></i> Non-Aktif
-                                    </span>
-                                @endif
-                            </td>
-                            <td class="column-created_at">
-                                <span class="date-text">{{ $user->created_at ? $user->created_at->format('d/m/Y H:i') : '-' }}</span>
-                            </td>
-                            <td class="column-updated_at">
-                                <span class="date-text">{{ $user->updated_at ? $user->updated_at->format('d/m/Y H:i') : '-' }}</span>
-                            </td>
-                            <td class="column-actions text-center">
-                                <div class="action-buttons">
-                                    <button type="button" 
-                                            class="action-btn view-btn" 
-                                            onclick="viewUser({{ $user->id_user }})"
-                                            data-user='@json($user)'
-                                            data-job-role-name="{{ $jobRoleName }}"
-                                            data-job-role-color="{{ $jobRoleColor }}"
-                                            title="Lihat Detail">
-                                        <i class='bx bx-show'></i>
-                                    </button>
-                                    <button type="button" 
-                                            class="action-btn edit-btn" 
-                                            onclick="editUser({{ $user->id_user }})"
-                                            data-user='@json($user)'
-                                            data-job-role-id="{{ $jobRoleId }}"
-                                            title="Edit">
-                                        <i class='bx bx-edit'></i>
-                                    </button>
-                                    <button type="button" 
-                                            class="action-btn delete-btn" 
-                                            onclick="deleteUser({{ $user->id_user }}, '{{ $user->nama }}')"
-                                            title="Hapus">
-                                        <i class='bx bx-trash'></i>
-                                    </button>
-                                </div>
-                            </td>
-                        </tr>
-                        @empty
-                        <tr id="emptyRow">
-                            <td colspan="9" class="text-center py-5">
-                                <i class='bx bx-user-x empty-icon'></i>
-                                <p class="empty-text">Belum ada data user</p>
-                            </td>
-                        </tr>
-                        @endforelse
-                    </tbody>
-                </table>
-            </div>
-            
-            <div class="card-footer bg-white border-0 py-3">
-                <div class="row align-items-center">
-                    <div class="col-md-6">
-                        <p class="mb-0 text-muted small" id="tableInfo">
-                            Menampilkan {{ $users->firstItem() ?? 0 }} - {{ $users->lastItem() ?? 0 }} dari {{ $users->total() }} data
-                        </p>
-                    </div>
-                    <div class="col-md-6">
-                        <nav>
-                            <ul class="pagination pagination-sm justify-content-md-end mb-0">
-                                {{ $users->appends(request()->query())->links('pagination::bootstrap-4') }}
-                            </ul>
-                        </nav>
-                    </div>
+            <div class="toolbar-right">
+                <select id="roleSelect" class="ctrl">
+                    <option value="">Semua Role</option>
+                    <option value="klien">Klien</option>
+                    <option value="karyawan">Karyawan</option>
+                    <option value="PM">Project Manager</option>
+                    <option value="admin">Admin</option>
+                </select>
+                <div class="search-wrap">
+                    <i class='bx bx-search ico'></i>
+                    <input type="text" id="searchInput" class="ctrl" placeholder="Cari user..." autocomplete="off">
+                    <button type="button" id="clearSearch" class="search-clear"><i class='bx bx-x'></i></button>
                 </div>
+                <button type="button" class="btn-ghost" data-bs-toggle="modal" data-bs-target="#columnSettingsModal"><i class='bx bx-columns'></i></button>
             </div>
         </div>
     </div>
+    <div style="overflow-x:auto;">
+        <table class="data-table">
+            <thead>
+                <tr>
+                    <th class="column-no" style="width:52px;text-align:center;">No</th>
+                    <th class="column-nama sortable" data-column="nama" style="min-width:240px;">Nama <span class="sort-icon"></span></th>
+                    <th class="column-job_role sortable" data-column="job_role" style="min-width:140px;">Jabatan <span class="sort-icon"></span></th>
+                    <th class="column-no_hp sortable" data-column="no_hp" style="min-width:120px;">No. HP <span class="sort-icon"></span></th>
+                    <th class="column-role sortable" data-column="role" style="min-width:110px;">Role <span class="sort-icon"></span></th>
+                    <th class="column-status sortable" data-column="status" style="min-width:100px;">Status <span class="sort-icon"></span></th>
+                    <th class="column-created_at sortable" data-column="created_at" style="min-width:130px;">Dibuat <span class="sort-icon"></span></th>
+                    <th class="column-updated_at sortable" data-column="updated_at" style="min-width:130px;">Diupdate <span class="sort-icon"></span></th>
+                    <th class="column-actions" style="width:110px;text-align:right;">Aksi</th>
+                </tr>
+            </thead>
+            <tbody id="userTableBody">
+                @forelse($users as $index => $user)
+                @php
+                    $jobRole      = $user->jobRole;
+                    $jobRoleName  = $jobRole ? $jobRole->nama_job_role : '-';
+                    $jobRoleId    = $jobRole ? $jobRole->id_job_role : '';
+                    $jobRoleColor = $user->jobRoleColor ?? 'purple-1';
+                    $roleConfig   = [
+                   'admin'    => ['icon'=>'bx-key',        'label'=>'Admin'],
+'PM'       => ['icon'=>'bx-task',         'label'=>'Project Manager'],
+'karyawan' => ['icon'=>'bx-user-circle',  'label'=>'Karyawan'],
+'klien'    => ['icon'=>'bx-buildings',    'label'=>'Klien'],
+                    ];
+                    $rc      = $roleConfig[$user->role] ?? $roleConfig['karyawan'];
+                    $roleCls = 'role-' . ($user->role === 'PM' ? 'pm' : $user->role);
+                @endphp
+                <tr class="user-row"
+                    data-nama="{{ strtolower($user->nama) }}"
+                    data-email="{{ strtolower($user->email) }}"
+                    data-job_role="{{ strtolower($jobRoleName) }}"
+                    data-job_role_id="{{ $jobRoleId }}"
+                    data-no_hp="{{ $user->no_hp ?? '' }}"
+                    data-role="{{ $user->role }}"
+                    data-status="{{ $user->status ? '1' : '0' }}"
+                    data-created_at="{{ $user->created_at }}"
+                    data-updated_at="{{ $user->updated_at }}"
+                    data-item='@json($user)'>
+                    <td class="column-no" style="text-align:center;"><span class="row-no">{{ $index + 1 }}</span></td>
+                    <td class="column-nama">
+                        <div style="display:flex;align-items:center;gap:10px;">
+                            @if($user->foto)
+                                <img src="{{ asset('storage/'.$user->foto) }}" alt="{{ $user->nama }}"
+                                     style="width:36px;height:36px;border-radius:50%;object-fit:cover;flex-shrink:0;"
+                                     onerror="this.style.display='none';this.nextElementSibling.style.display='flex';">
+                                <div class="av" style="display:none;">{{ strtoupper(substr($user->nama,0,1)) }}</div>
+                            @else
+                                <div class="av">{{ strtoupper(substr($user->nama,0,1)) }}</div>
+                            @endif
+                            <div>
+                                <div class="user-name">{{ $user->nama }}</div>
+                                <div class="user-email">{{ $user->email }}</div>
+                            </div>
+                        </div>
+                    </td>
+                    <td class="column-job_role">
+                        @if($jobRole)
+                            <span class="jr-pill {{ $jobRoleColor }}">{{ $jobRoleName }}</span>
+                        @else
+                            <span style="color:var(--ink-400);font-size:12px;">—</span>
+                        @endif
+                    </td>
+                    <td class="column-no_hp"><span class="date-val">{{ $user->no_hp ?? '—' }}</span></td>
+                    <td class="column-role">
+                        <span class="role-pill {{ $roleCls }}">
+                            <i class='bx {{ $rc['icon'] }}' style="font-size:13px;"></i> {{ $rc['label'] }}
+                        </span>
+                    </td>
+                    <td class="column-status">
+                        @if($user->status)
+                            <span class="status-pill pill-active"><span class="dot"></span>Aktif</span>
+                        @else
+                            <span class="status-pill pill-inactive"><span class="dot"></span>Non-Aktif</span>
+                        @endif
+                    </td>
+                    <td class="column-created_at"><span class="date-val">{{ $user->created_at?->format('d/m/Y H:i') ?? '—' }}</span></td>
+                    <td class="column-updated_at"><span class="date-val">{{ $user->updated_at?->format('d/m/Y H:i') ?? '—' }}</span></td>
+                    <td class="column-actions" style="text-align:right;">
+                        <div class="act-group">
+                            <button type="button" class="act-btn view" onclick="viewUser(this)"
+                                    data-item='@json($user)' data-job-role-name="{{ $jobRoleName }}" data-job-role-color="{{ $jobRoleColor }}"
+                                    title="Lihat Detail"><i class='bx bx-show'></i></button>
+                            <button type="button" class="act-btn edit" onclick="editUser(this)"
+                                    data-item='@json($user)' data-job-role-id="{{ $jobRoleId }}"
+                                    title="Edit"><i class='bx bx-edit'></i></button>
+                            <button type="button" class="act-btn delete"
+                                    onclick="deleteUser({{ $user->id_user }},'{{ addslashes($user->nama) }}')"
+                                    title="Hapus"><i class='bx bx-trash'></i></button>
+                        </div>
+                    </td>
+                </tr>
+                @empty
+                <tr><td colspan="9">
+                    <div class="empty-state">
+                        <i class='bx bx-user-x'></i>
+                        <p>Belum ada data user.<br>Tambahkan user pertama Anda.</p>
+                    </div>
+                </td></tr>
+                @endforelse
+            </tbody>
+        </table>
+    </div>
+    <div class="table-footer">
+        <span class="footer-info">Menampilkan <strong id="showingStart">1</strong>–<strong id="showingEnd">{{ $users->count() }}</strong> dari <strong id="totalEntries">{{ $users->count() }}</strong> data</span>
+        <nav><ul class="page-list" id="paginationControls"></ul></nav>
+    </div>
 </div>
 
-<!-- View User Modal -->
-<div class="modal fade" id="viewUserModal" tabindex="-1">
-    <div class="modal-dialog modal-dialog-centered modal-lg">
+{{-- ══ MODAL VIEW ══ --}}
+<div class="modal fade" id="viewUserModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content">
-            <div class="modal-header border-0 pb-0">
-                <h5 class="modal-title fw-semibold">Detail User</h5>
+            <div class="modal-hdr">
+                <div class="modal-hdr-title"><div class="hdr-icon"><i class='bx bx-show'></i></div>Detail User</div>
                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
-            <div class="modal-body pt-3">
-                <div class="row g-4">
-                    <!-- Foto Profil -->
-                    <div class="col-12 text-center">
-                        <div id="view_foto_container"></div>
-                    </div>
-                    
-                    <!-- Informasi Detail -->
-                    <div class="col-md-6">
-                        <label class="form-label small text-muted mb-1">Nama Lengkap</label>
-                        <p class="fw-semibold mb-0" id="view_nama">-</p>
-                    </div>
-                    <div class="col-md-6">
-                        <label class="form-label small text-muted mb-1">Email</label>
-                        <p class="fw-semibold mb-0" id="view_email">-</p>
-                    </div>
-                    <div class="col-md-6">
-                        <label class="form-label small text-muted mb-1">Role</label>
-                        <div id="view_role_badge"></div>
-                    </div>
-                    <div class="col-md-6">
-                        <label class="form-label small text-muted mb-1">Job Role</label>
-                        <div id="view_job_role"></div>
-                    </div>
-                    <div class="col-md-6">
-                        <label class="form-label small text-muted mb-1">No. HP</label>
-                        <p class="fw-semibold mb-0" id="view_no_hp">-</p>
-                    </div>
-                    <div class="col-md-6">
-                        <label class="form-label small text-muted mb-1">Status</label>
-                        <div id="view_status_badge"></div>
-                    </div>
-                    <div class="col-md-6">
-                        <label class="form-label small text-muted mb-1">ID User</label>
-                        <p class="fw-semibold mb-0" id="view_id_user">-</p>
-                    </div>
-                    <div class="col-md-6">
-                        <label class="form-label small text-muted mb-1">Dibuat Pada</label>
-                        <p class="fw-semibold mb-0" id="view_created_at">-</p>
-                    </div>
-                    <div class="col-md-6">
-                        <label class="form-label small text-muted mb-1">Terakhir Diupdate</label>
-                        <p class="fw-semibold mb-0" id="view_updated_at">-</p>
-                    </div>
-                </div>
+            <div class="modal-bdy">
+                <div style="text-align:center;margin-bottom:20px;" id="view_foto_container"></div>
+                <hr class="divider">
+                <div class="dsec">Informasi Akun</div>
+                <div class="drow"><span class="dlabel">Nama</span><span class="dval" id="view_nama"></span></div>
+                <div class="drow"><span class="dlabel">Email</span><span class="dval" id="view_email" style="color:var(--p1);font-weight:500;"></span></div>
+                <div class="drow"><span class="dlabel">No. HP</span><span class="dval" id="view_no_hp"></span></div>
+                <div class="drow"><span class="dlabel">Role</span><span class="dval" id="view_role_badge"></span></div>
+                <div class="drow"><span class="dlabel">Jabatan</span><span class="dval" id="view_job_role"></span></div>
+                <div class="drow"><span class="dlabel">Status</span><span class="dval" id="view_status_badge"></span></div>
+                <hr class="divider">
+                <div class="dsec">Waktu</div>
+                <div class="drow"><span class="dlabel">Dibuat</span><span class="dval" style="font-weight:400;color:var(--ink-500);" id="view_created_at"></span></div>
+                <div class="drow"><span class="dlabel">Diperbarui</span><span class="dval" style="font-weight:400;color:var(--ink-500);" id="view_updated_at"></span></div>
             </div>
-            <div class="modal-footer border-0 pt-0">
-                <button type="button" class="btn btn-light btn-sm" data-bs-dismiss="modal">Tutup</button>
+            <div class="modal-ftr">
+                <button type="button" class="btn-outline" data-bs-dismiss="modal">Tutup</button>
+                <button type="button" class="btn-main" id="view_edit_btn"><i class='bx bx-edit'></i> Edit</button>
             </div>
         </div>
     </div>
 </div>
 
-<!-- Add User Modal -->
-<div class="modal fade" id="addUserModal" tabindex="-1">
-    <div class="modal-dialog modal-dialog-centered modal-lg">
+{{-- ══ MODAL ADD ══ --}}
+<div class="modal fade" id="addUserModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content">
-            <div class="modal-header border-0 pb-0">
-                <h5 class="modal-title fw-semibold">Tambah User Baru</h5>
+            <div class="modal-hdr">
+                <div class="modal-hdr-title"><div class="hdr-icon"><i class='bx bx-plus'></i></div>Tambah User Baru</div>
                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
             <form action="{{ route('master-data-users.store') }}" method="POST" enctype="multipart/form-data" id="addUserForm">
                 @csrf
-                <div class="modal-body pt-3">
+                <div class="modal-bdy">
                     <div class="row g-3">
                         <div class="col-md-6">
-                            <label class="form-label small">Nama Lengkap *</label>
-                            <input type="text" name="nama" class="form-control" required maxlength="100">
+                            <label class="flabel">Nama Lengkap <span style="color:#DC2626;">*</span></label>
+                            <input type="text" name="nama" class="fctrl" required maxlength="100" placeholder="Nama lengkap">
                         </div>
                         <div class="col-md-6">
-                            <label class="form-label small">Email *</label>
-                            <input type="email" name="email" class="form-control" required>
+                            <label class="flabel">Email <span style="color:#DC2626;">*</span></label>
+                            <input type="email" name="email" class="fctrl" required placeholder="email@example.com">
                         </div>
                         <div class="col-md-6">
-                            <label class="form-label small">Password *</label>
-                            <div class="input-group">
-                                <input type="password" name="password" id="add_password" class="form-control" required minlength="8">
-                                <button class="btn btn-outline-secondary" type="button" onclick="togglePassword('add_password', 'add_password_icon')">
-                                    <i class='bx bx-hide' id="add_password_icon"></i>
-                                </button>
+                            <label class="flabel">Password <span style="color:#DC2626;">*</span></label>
+                            <div class="pw-wrap">
+                                <input type="password" name="password" id="add_password" class="fctrl" required minlength="8" placeholder="Min. 8 karakter">
+                                <button class="btn-pw" type="button" onclick="togglePw('add_password','add_pw_icon')"><i class='bx bx-hide' id="add_pw_icon"></i></button>
                             </div>
-                            <small class="text-muted">Minimal 8 karakter</small>
                         </div>
                         <div class="col-md-6">
-                            <label class="form-label small">Role *</label>
-                            <select name="role" id="add_role" class="form-select" required onchange="toggleJobRoleField(this.value, 'add')">
-                                <option value="">Pilih Role</option>
+                            <label class="flabel">Role <span style="color:#DC2626;">*</span></label>
+                            <select name="role" id="add_role" class="fctrl" required onchange="handleAddRoleChange(this.value)">
+                                <option value="">— Pilih Role —</option>
                                 <option value="admin">Admin</option>
                                 <option value="karyawan">Karyawan</option>
                                 <option value="PM">Project Manager</option>
                                 <option value="klien">Klien</option>
                             </select>
                         </div>
-                        <div class="col-md-6" id="addJobRoleField">
-                            <label class="form-label small">Job Role</label>
-                            <div class="custom-search-dropdown">
-                                <div class="dropdown-display" onclick="toggleDropdown('add')">
-                                    <span class="selected-text">-- Pilih Job Role --</span>
+                        {{-- Hanya muncul jika role = karyawan --}}
+                        <div class="col-md-6" id="addJobRoleField" style="display:none;">
+                            <label class="flabel">Job Role <span style="color:#DC2626;">*</span></label>
+                            <div class="cdd">
+                                <div class="cdd-display" onclick="cddToggle('add')">
+                                    <span class="cdd-txt" id="addCddTxt">— Pilih Job Role —</span>
                                     <i class='bx bx-chevron-down'></i>
                                 </div>
-                                <div class="dropdown-menu-custom" id="addJobRoleDropdown">
-                                    <div class="dropdown-search">
-                                        <i class='bx bx-search'></i>
-                                        <input type="text" placeholder="Cari job role..." onkeyup="filterJobRoles('add', this.value)" onclick="event.stopPropagation()">
+                                <div class="cdd-menu" id="addCddMenu">
+                                    <div class="cdd-search"><i class='bx bx-search'></i>
+                                        <input type="text" placeholder="Cari..." oninput="cddFilter('add',this.value)" onclick="event.stopPropagation()">
                                     </div>
-                                    <div class="dropdown-options" id="addJobRoleOptions">
-                                        <div class="dropdown-option" data-value="" onclick="selectJobRole('add', '', '-- Pilih Job Role --')">
-                                            -- Pilih Job Role --
-                                        </div>
-                                        @foreach($jobRoles as $jobRole)
-                                        <div class="dropdown-option" data-value="{{ $jobRole->id_job_role }}" data-text="{{ $jobRole->nama_job_role }}" onclick="selectJobRole('add', '{{ $jobRole->id_job_role }}', '{{ $jobRole->nama_job_role }}')">
-                                            {{ $jobRole->nama_job_role }}
-                                        </div>
+                                    <div class="cdd-opts" id="addCddOpts">
+                                        <div class="cdd-opt" data-value="" onclick="cddSelect('add','','— Pilih Job Role —')">— Pilih Job Role —</div>
+                                        @foreach($jobRoles as $jr)
+                                        <div class="cdd-opt" data-value="{{ $jr->id_job_role }}" data-text="{{ $jr->nama_job_role }}"
+                                             onclick="cddSelect('add','{{ $jr->id_job_role }}','{{ $jr->nama_job_role }}')">{{ $jr->nama_job_role }}</div>
                                         @endforeach
                                     </div>
                                 </div>
                                 <input type="hidden" name="id_job_role" id="add_id_job_role">
                             </div>
                         </div>
-                        <div class="col-md-6">
-                            <label class="form-label small">No. HP</label>
-                            <input type="text" name="no_hp" class="form-control" maxlength="20">
+                        {{-- Info otomatis untuk admin/PM/klien --}}
+                        <div class="col-md-6" id="addJobRoleInfo" style="display:none;">
+                            <label class="flabel">Job Role</label>
+                            <div class="fctrl" style="background:var(--ink-100);color:var(--ink-500);cursor:default;" id="addJobRoleInfoText">— otomatis —</div>
+                            <div class="fhint"><i class='bx bx-info-circle'></i> Ditetapkan otomatis sesuai role</div>
                         </div>
                         <div class="col-md-6">
-                            <label class="form-label small">Status *</label>
-                            <select name="status" class="form-select" required>
+                            <label class="flabel">No. HP</label>
+                            <input type="text" name="no_hp" class="fctrl" maxlength="20" placeholder="08xx-xxxx-xxxx">
+                        </div>
+                        <div class="col-md-6">
+                            <label class="flabel">Status <span style="color:#DC2626;">*</span></label>
+                            <select name="status" class="fctrl" required>
                                 <option value="1" selected>Aktif</option>
                                 <option value="0">Non-Aktif</option>
                             </select>
                         </div>
                         <div class="col-12">
-                            <label class="form-label small">Foto Profil</label>
-                            <div class="position-relative">
-                                <input type="file" name="foto" id="add_foto" class="form-control" accept="image/jpeg,image/png,image/jpg" onchange="previewAddPhoto(event)">
-                                <button type="button" class="btn btn-sm btn-danger position-absolute" id="clearAddPhoto" style="display: none; top: 4px; right: 4px;" onclick="clearAddPhotoPreview()">
-                                    <i class='bx bx-x'></i>
-                                </button>
-                            </div>
-                            <small class="text-muted">Format: JPG, JPEG, PNG | Maksimal 2MB</small>
-                            <div id="addPhotoPreview" class="mt-2" style="display: none;">
-                                <img id="addPhotoImg" src="" alt="Preview" class="preview-image">
+                            <label class="flabel">Foto Profil</label>
+                            <input type="file" name="foto" id="add_foto" class="fctrl" accept="image/jpeg,image/png,image/jpg" onchange="previewPhoto(event,'addPhotoImg','addPhotoPreview')">
+                            <div class="fhint">Format: JPG, JPEG, PNG — Maks. 2MB</div>
+                            <div class="photo-preview" id="addPhotoPreview">
+                                <img id="addPhotoImg" src="" alt="Preview">
+                                <button type="button" class="photo-clear" onclick="clearPhoto('add_foto','addPhotoImg','addPhotoPreview')"><i class='bx bx-x'></i> Hapus</button>
                             </div>
                         </div>
                     </div>
                 </div>
-                <div class="modal-footer border-0 pt-0">
-                    <button type="button" class="btn btn-light btn-sm" data-bs-dismiss="modal">Batal</button>
-                    <button type="submit" class="btn btn-primary btn-sm">Simpan</button>
+                <div class="modal-ftr">
+                    <button type="button" class="btn-outline" data-bs-dismiss="modal">Batal</button>
+                    <button type="submit" class="btn-main"><i class='bx bx-save'></i> Simpan</button>
                 </div>
             </form>
         </div>
     </div>
 </div>
 
-<!-- Edit User Modal -->
-<div class="modal fade" id="editUserModal" tabindex="-1">
-    <div class="modal-dialog modal-dialog-centered modal-lg">
+{{-- ══ MODAL EDIT ══ --}}
+<div class="modal fade" id="editUserModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content">
-            <div class="modal-header border-0 pb-0">
-                <h5 class="modal-title fw-semibold">Edit User</h5>
+            <div class="modal-hdr">
+                <div class="modal-hdr-title"><div class="hdr-icon"><i class='bx bx-edit'></i></div>Edit User</div>
                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
             <form id="editUserForm" method="POST" enctype="multipart/form-data">
-                @csrf
-                @method('PUT')
-                <div class="modal-body pt-3">
+                @csrf @method('PUT')
+                <div class="modal-bdy">
                     <div class="row g-3">
                         <div class="col-md-6">
-                            <label class="form-label small">Nama Lengkap *</label>
-                            <input type="text" name="nama" id="edit_nama" class="form-control" required maxlength="100">
+                            <label class="flabel">Nama Lengkap <span style="color:#DC2626;">*</span></label>
+                            <input type="text" name="nama" id="edit_nama" class="fctrl" required maxlength="100">
                         </div>
                         <div class="col-md-6">
-                            <label class="form-label small">Email *</label>
-                            <input type="email" name="email" id="edit_email" class="form-control" required>
+                            <label class="flabel">Email <span style="color:#DC2626;">*</span></label>
+                            <input type="email" name="email" id="edit_email" class="fctrl" required>
                         </div>
                         <div class="col-md-6">
-                            <label class="form-label small">Password (kosongkan jika tidak diubah)</label>
-                            <div class="input-group">
-                                <input type="password" name="password" id="edit_password" class="form-control" minlength="8">
-                                <button class="btn btn-outline-secondary" type="button" onclick="togglePassword('edit_password', 'edit_password_icon')">
-                                    <i class='bx bx-hide' id="edit_password_icon"></i>
-                                </button>
+                            <label class="flabel">Password <span class="fhint" style="margin:0;display:inline;">(kosongkan jika tidak diubah)</span></label>
+                            <div class="pw-wrap">
+                                <input type="password" name="password" id="edit_password" class="fctrl" minlength="8" placeholder="Isi jika ingin mengubah">
+                                <button class="btn-pw" type="button" onclick="togglePw('edit_password','edit_pw_icon')"><i class='bx bx-hide' id="edit_pw_icon"></i></button>
                             </div>
                         </div>
                         <div class="col-md-6">
-                            <label class="form-label small">Role *</label>
-                            <select name="role" id="edit_role" class="form-select" required onchange="toggleJobRoleField(this.value, 'edit')">
+                            <label class="flabel">
+                                Role <span style="color:#DC2626;">*</span>
+                                <span id="edit_role_klien_badge" class="lock-badge" style="display:none;"><i class='bx bx-lock-alt'></i> Tidak dapat diubah</span>
+                            </label>
+                            <select name="role" id="edit_role" class="fctrl" required onchange="handleEditRoleChange(this.value)">
                                 <option value="admin">Admin</option>
                                 <option value="karyawan">Karyawan</option>
                                 <option value="PM">Project Manager</option>
                                 <option value="klien">Klien</option>
                             </select>
+                            <input type="hidden" name="role" id="edit_role_hidden">
                         </div>
-                        <div class="col-md-6" id="editJobRoleField">
-                            <label class="form-label small">Job Role</label>
-                            <div class="custom-search-dropdown">
-                                <div class="dropdown-display" onclick="toggleDropdown('edit')">
-                                    <span class="selected-text" id="editSelectedText">-- Pilih Job Role --</span>
+                        {{-- Hanya muncul jika role = karyawan --}}
+                        <div class="col-md-6" id="editJobRoleField" style="display:none;">
+                            <label class="flabel">Job Role <span style="color:#DC2626;">*</span></label>
+                            <div class="cdd">
+                                <div class="cdd-display" id="editDropdownDisplay" onclick="cddToggle('edit')">
+                                    <span class="cdd-txt" id="editSelectedText">— Pilih Job Role —</span>
                                     <i class='bx bx-chevron-down'></i>
                                 </div>
-                                <div class="dropdown-menu-custom" id="editJobRoleDropdown">
-                                    <div class="dropdown-search">
-                                        <i class='bx bx-search'></i>
-                                        <input type="text" placeholder="Cari job role..." onkeyup="filterJobRoles('edit', this.value)" onclick="event.stopPropagation()">
+                                <div class="cdd-menu" id="editCddMenu">
+                                    <div class="cdd-search"><i class='bx bx-search'></i>
+                                        <input type="text" placeholder="Cari..." oninput="cddFilter('edit',this.value)" onclick="event.stopPropagation()">
                                     </div>
-                                    <div class="dropdown-options" id="editJobRoleOptions">
-                                        <div class="dropdown-option" data-value="" onclick="selectJobRole('edit', '', '-- Pilih Job Role --')">
-                                            -- Pilih Job Role --
-                                        </div>
-                                        @foreach($jobRoles as $jobRole)
-                                        <div class="dropdown-option" data-value="{{ $jobRole->id_job_role }}" data-text="{{ $jobRole->nama_job_role }}" onclick="selectJobRole('edit', '{{ $jobRole->id_job_role }}', '{{ $jobRole->nama_job_role }}')">
-                                            {{ $jobRole->nama_job_role }}
-                                        </div>
+                                    <div class="cdd-opts" id="editCddOpts">
+                                        <div class="cdd-opt" data-value="" onclick="cddSelect('edit','','— Pilih Job Role —')">— Pilih Job Role —</div>
+                                        @foreach($jobRoles as $jr)
+                                        <div class="cdd-opt" data-value="{{ $jr->id_job_role }}" data-text="{{ $jr->nama_job_role }}"
+                                             onclick="cddSelect('edit','{{ $jr->id_job_role }}','{{ $jr->nama_job_role }}')">{{ $jr->nama_job_role }}</div>
                                         @endforeach
                                     </div>
                                 </div>
                                 <input type="hidden" name="id_job_role" id="edit_id_job_role">
                             </div>
                         </div>
-                        <div class="col-md-6">
-                            <label class="form-label small">No. HP</label>
-                            <input type="text" name="no_hp" id="edit_no_hp" class="form-control" maxlength="20">
+                        {{-- Info otomatis untuk admin/PM/klien --}}
+                        <div class="col-md-6" id="editJobRoleInfo" style="display:none;">
+                            <label class="flabel">Job Role</label>
+                            <div class="fctrl" style="background:var(--ink-100);color:var(--ink-500);cursor:default;" id="editJobRoleInfoText">— otomatis —</div>
+                            <div class="fhint"><i class='bx bx-info-circle'></i> Ditetapkan otomatis sesuai role</div>
                         </div>
                         <div class="col-md-6">
-                            <label class="form-label small">Status *</label>
-                            <select name="status" id="edit_status" class="form-select" required>
+                            <label class="flabel">No. HP</label>
+                            <input type="text" name="no_hp" id="edit_no_hp" class="fctrl" maxlength="20">
+                        </div>
+                        <div class="col-md-6">
+                            <label class="flabel">Status <span style="color:#DC2626;">*</span></label>
+                            <select name="status" id="edit_status" class="fctrl" required>
                                 <option value="1">Aktif</option>
                                 <option value="0">Non-Aktif</option>
                             </select>
                         </div>
                         <div class="col-12">
-                            <label class="form-label small">Foto Profil Saat Ini</label>
-                            <div id="currentPhotoPreview" class="mb-2"></div>
-                        </div>
-                        <div class="col-12">
-                            <label class="form-label small">Ganti Foto Profil</label>
-                            <div class="position-relative">
-                                <input type="file" name="foto" id="edit_foto" class="form-control" accept="image/jpeg,image/png,image/jpg" onchange="previewNewPhoto(event)">
-                                <button type="button" class="btn btn-sm btn-danger position-absolute" id="clearEditPhoto" style="display: none; top: 4px; right: 4px;" onclick="clearEditPhotoPreview()">
-                                    <i class='bx bx-x'></i>
-                                </button>
-                            </div>
-                            <small class="text-muted">Format: JPG, JPEG, PNG | Maksimal 2MB</small>
-                            <div id="newPhotoPreview" class="mt-2" style="display: none;">
-                                <img id="newPhotoImg" src="" alt="Preview" class="preview-image">
+                            <label class="flabel">Foto Profil Saat Ini</label>
+                            <div class="photo-current" id="currentPhotoPreview"></div>
+                            <label class="flabel">Ganti Foto Profil</label>
+                            <input type="file" name="foto" id="edit_foto" class="fctrl" accept="image/jpeg,image/png,image/jpg" onchange="previewPhoto(event,'editPhotoImg','editPhotoPreview')">
+                            <div class="fhint">Format: JPG, JPEG, PNG — Maks. 2MB</div>
+                            <div class="photo-preview" id="editPhotoPreview">
+                                <img id="editPhotoImg" src="" alt="Preview">
+                                <button type="button" class="photo-clear" onclick="clearPhoto('edit_foto','editPhotoImg','editPhotoPreview')"><i class='bx bx-x'></i> Hapus</button>
                             </div>
                         </div>
                     </div>
                 </div>
-                <div class="modal-footer border-0 pt-0">
-                    <button type="button" class="btn btn-light btn-sm" data-bs-dismiss="modal">Batal</button>
-                    <button type="submit" class="btn btn-primary btn-sm">Update</button>
+                <div class="modal-ftr">
+                    <button type="button" class="btn-outline" data-bs-dismiss="modal">Batal</button>
+                    <button type="submit" class="btn-main"><i class='bx bx-save'></i> Update</button>
                 </div>
             </form>
         </div>
     </div>
 </div>
 
-<!-- Column Settings Modal -->
-<div class="modal fade" id="columnSettingsModal" tabindex="-1">
+{{-- ══ MODAL COLUMN SETTINGS ══ --}}
+<div class="modal fade" id="columnSettingsModal" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered modal-sm">
         <div class="modal-content">
-            <div class="modal-header border-0 pb-0">
-                <h5 class="modal-title fw-semibold">Pengaturan Kolom</h5>
+            <div class="modal-hdr">
+                <div class="modal-hdr-title"><div class="modal-hdr-icon"><i class='bx bx-columns'></i></div>Pengaturan Kolom</div>
                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
-            <div class="modal-body pt-2">
-                <div class="form-check mb-2">
-                    <input class="form-check-input column-toggle" type="checkbox" value="no" id="col-no" checked disabled>
-                    <label class="form-check-label small" for="col-no">No Urut</label>
+            <div class="modal-bdy" style="padding-top:14px;">
+                @foreach([
+                    ['no','No Urut',true,true],['nama','Nama',true,true],['job_role','Jabatan',true,false],
+                    ['no_hp','No. HP',true,false],['role','Role',true,false],['status','Status',true,false],
+                    ['created_at','Dibuat',false,false],['updated_at','Diupdate',false,false],['actions','Aksi',true,true],
+                ] as [$val, $label, $checked, $disabled])
+                <div class="col-check-item">
+                    <input class="column-toggle" type="checkbox" value="{{ $val }}" id="col-{{ $val }}" {{ $checked?'checked':'' }} {{ $disabled?'disabled':'' }}>
+                    <label for="col-{{ $val }}">{{ $label }}</label>
+                    @if($disabled)<span class="col-lock"><i class='bx bx-lock-alt'></i></span>@endif
                 </div>
-                <div class="form-check mb-2">
-                    <input class="form-check-input column-toggle" type="checkbox" value="nama" id="col-nama" checked disabled>
-                    <label class="form-check-label small" for="col-nama">Nama</label>
-                </div>
-                <div class="form-check mb-2">
-                    <input class="form-check-input column-toggle" type="checkbox" value="job_role" id="col-job_role" checked>
-                    <label class="form-check-label small" for="col-job_role">Jabatan</label>
-                </div>
-                <div class="form-check mb-2">
-                    <input class="form-check-input column-toggle" type="checkbox" value="no_hp" id="col-no_hp" checked>
-                    <label class="form-check-label small" for="col-no_hp">No. HP</label>
-                </div>
-                <div class="form-check mb-2">
-                    <input class="form-check-input column-toggle" type="checkbox" value="role" id="col-role" checked>
-                    <label class="form-check-label small" for="col-role">Role</label>
-                </div>
-                <div class="form-check mb-2">
-                    <input class="form-check-input column-toggle" type="checkbox" value="status" id="col-status" checked>
-                    <label class="form-check-label small" for="col-status">Status</label>
-                </div>
-                <div class="form-check mb-2">
-                    <input class="form-check-input column-toggle" type="checkbox" value="created_at" id="col-created_at">
-                    <label class="form-check-label small" for="col-created_at">Dibuat</label>
-                </div>
-                <div class="form-check mb-2">
-                    <input class="form-check-input column-toggle" type="checkbox" value="updated_at" id="col-updated_at">
-                    <label class="form-check-label small" for="col-updated_at">Diupdate</label>
-                </div>
-                <div class="form-check mb-2">
-                    <input class="form-check-input column-toggle" type="checkbox" value="actions" id="col-actions" checked disabled>
-                    <label class="form-check-label small" for="col-actions">Aksi</label>
-                </div>
+                @endforeach
             </div>
-            <div class="modal-footer border-0 pt-0">
-                <button type="button" class="btn btn-light btn-sm" onclick="resetColumns()">Reset</button>
-                <button type="button" class="btn btn-primary btn-sm" onclick="saveColumnSettings()">Simpan</button>
+            <div class="modal-ftr" style="justify-content:space-between;">
+                <button type="button" class="btn-outline" onclick="resetColumns()">Reset</button>
+                <button type="button" class="btn-main" onclick="saveColumnSettings()"><i class='bx bx-save'></i> Simpan</button>
             </div>
         </div>
     </div>
 </div>
-
-<style>
-/* ===== MODERN TABLE DESIGN (SAME AS PERUSAHAAN) ===== */
-/* User Email - Primary Color */
-.user-email {
-    font-size: 0.75rem;
-    color: #696cff !important;
-    font-weight: 500;
-}
-
-/* Job Role Badge - Colored Variants */
-.job-role-badge {
-    display: inline-block;
-    padding: 4px 10px;
-    border-radius: 6px;
-    font-size: 0.8125rem;
-    font-weight: 500;
-    transition: all 0.2s ease;
-}
-
-/* Default */
-.job-role-badge {
-    background: #f8f9fa;
-    color: #495057;
-}
-
-/* Info - Development (Blue) */
-.job-role-info {
-    background: #d1e7fd !important;
-    color: #0c63e4 !important;
-}
-
-/* Warning - SEO/Marketing (Orange) */
-.job-role-warning {
-    background: #fff3cd !important;
-    color: #ff9800 !important;
-}
-
-/* Primary - Design (Purple) */
-.job-role-primary {
-    background: #e7e9fd !important;
-    color: #696cff !important;
-}
-
-/* Success - Project Management (Green) */
-.job-role-success {
-    background: #d4edda !important;
-    color: #28a745 !important;
-}
-
-/* Secondary - Admin/Support (Gray) */
-.job-role-secondary {
-    background: #e9ecef !important;
-    color: #6c757d !important;
-}
-
-/* Danger - Other (Red) */
-.job-role-danger {
-    background: #f8d7da !important;
-    color: #dc3545 !important;
-}
-
-/* Table Headers - Uppercase */
-.table thead th {
-    font-weight: 600;
-    color: #495057;
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
-    padding: 12px 16px;
-    background: #f8f9fa;
-    border: none;
-    font-size: 0.75rem;
-}
-
-/* Card */
-.card {
-    border-radius: 12px;
-    overflow: hidden;
-}
-
-/* Badge Counters - Simplified */
-.badge-counter {
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-    padding: 6px 14px;
-    background: #f8f9fa;
-    border: 1.5px solid #e9ecef;
-    border-radius: 20px;
-    transition: all 0.2s ease;
-    cursor: pointer;
-}
-
-.badge-counter:hover {
-    background: #e9ecef;
-    border-color: #dee2e6;
-    transform: translateY(-1px);
-}
-
-.badge-counter.active {
-    background: #696cff;
-    border-color: #696cff;
-    box-shadow: 0 2px 8px rgba(105, 108, 255, 0.25);
-}
-
-.badge-counter .count {
-    font-weight: 600;
-    font-size: 0.875rem;
-    color: #495057;
-}
-
-.badge-counter.active .count {
-    color: white;
-}
-
-.badge-counter .label {
-    font-size: 0.8125rem;
-    color: #6c757d;
-    font-weight: 500;
-}
-
-.badge-counter.active .label {
-    color: white;
-}
-
-/* Search Box - Clean Design with Clear Button */
-.search-box {
-    position: relative;
-    display: flex;
-    align-items: center;
-}
-
-.search-box i.bx-search {
-    position: absolute;
-    left: 12px;
-    color: #adb5bd;
-    font-size: 18px;
-    pointer-events: none;
-    z-index: 1;
-}
-
-.search-box input {
-    padding: 6px 36px 6px 36px;
-    border: 1px solid #dee2e6;
-    border-radius: 6px;
-    font-size: 0.875rem;
-    width: 200px;
-    transition: all 0.2s ease;
-}
-
-.search-box input:focus {
-    outline: none;
-    border-color: #696cff;
-    box-shadow: 0 0 0 3px rgba(105, 108, 255, 0.1);
-    width: 250px;
-}
-
-.btn-clear-search {
-    position: absolute;
-    right: 4px;
-    background: none;
-    border: none;
-    padding: 4px;
-    cursor: pointer;
-    color: #6c757d;
-    border-radius: 4px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    transition: all 0.2s ease;
-    z-index: 2;
-}
-
-.btn-clear-search:hover {
-    background: #f8f9fa;
-    color: #dc3545;
-}
-
-.btn-clear-search i {
-    font-size: 18px;
-}
-
-/* Custom Search Dropdown */
-.custom-search-dropdown {
-    position: relative;
-    width: 100%;
-}
-
-.dropdown-display {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding: 6px 12px;
-    border: 1px solid #dee2e6;
-    border-radius: 6px;
-    background: white;
-    cursor: pointer;
-    transition: all 0.2s ease;
-    font-size: 0.875rem;
-}
-
-.dropdown-display:hover {
-    border-color: #696cff;
-}
-
-.dropdown-display.active {
-    border-color: #696cff;
-    box-shadow: 0 0 0 3px rgba(105, 108, 255, 0.1);
-}
-
-.dropdown-display .selected-text {
-    color: #495057;
-    flex: 1;
-}
-
-.dropdown-display i {
-    font-size: 20px;
-    color: #6c757d;
-    transition: transform 0.2s ease;
-}
-
-.dropdown-display.active i {
-    transform: rotate(180deg);
-}
-
-.dropdown-menu-custom {
-    position: absolute;
-    top: 100%;
-    left: 0;
-    right: 0;
-    background: white;
-    border: 1px solid #dee2e6;
-    border-radius: 6px;
-    margin-top: 4px;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-    z-index: 1000;
-    display: none;
-    max-height: 280px;
-    overflow: hidden;
-}
-
-.dropdown-menu-custom.show {
-    display: block;
-}
-
-.dropdown-search {
-    position: relative;
-    padding: 8px;
-    border-bottom: 1px solid #f1f3f5;
-}
-
-.dropdown-search i {
-    position: absolute;
-    left: 16px;
-    top: 50%;
-    transform: translateY(-50%);
-    color: #adb5bd;
-    font-size: 16px;
-}
-
-.dropdown-search input {
-    width: 100%;
-    padding: 6px 12px 6px 32px;
-    border: 1px solid #dee2e6;
-    border-radius: 6px;
-    font-size: 0.875rem;
-    outline: none;
-}
-
-.dropdown-search input:focus {
-    border-color: #696cff;
-}
-
-.dropdown-options {
-    max-height: 220px;
-    overflow-y: auto;
-}
-
-.dropdown-option {
-    padding: 8px 12px;
-    cursor: pointer;
-    font-size: 0.875rem;
-    color: #495057;
-    transition: background 0.15s ease;
-}
-
-.dropdown-option:hover {
-    background: #f8f9fa;
-}
-
-.dropdown-option.selected {
-    background: #e7e9fd;
-    color: #696cff;
-    font-weight: 500;
-}
-
-.dropdown-option.hidden {
-    display: none;
-}
-
-/* Scrollbar untuk dropdown */
-.dropdown-options::-webkit-scrollbar {
-    width: 6px;
-}
-
-.dropdown-options::-webkit-scrollbar-track {
-    background: #f8f9fa;
-}
-
-.dropdown-options::-webkit-scrollbar-thumb {
-    background: #dee2e6;
-    border-radius: 3px;
-}
-
-.dropdown-options::-webkit-scrollbar-thumb:hover {
-    background: #ced4da;
-}
-
-/* Table - Clean & Minimal */
-.table {
-    font-size: 0.875rem;
-}
-
-.table thead tr {
-    border-bottom: 2px solid #f1f3f5;
-}
-
-.table thead th {
-    font-weight: 600;
-    color: #495057;
-    text-transform: none;
-    padding: 12px 16px;
-    background: #f8f9fa;
-    border: none;
-}
-
-.table tbody tr {
-    border-bottom: 1px solid #f1f3f5;
-    transition: background 0.15s ease;
-}
-
-.table tbody tr:hover {
-    background: #f8f9fa;
-}
-
-.table tbody td {
-    padding: 14px 16px;
-    color: #495057;
-    vertical-align: middle;
-    border: none;
-}
-
-/* Sortable Headers */
-.sortable {
-    cursor: pointer;
-    user-select: none;
-}
-
-.sortable:hover {
-    background: #e9ecef;
-}
-
-.sort-icon {
-    font-size: 16px;
-    color: #ced4da;
-    transition: all 0.2s ease;
-}
-
-.sortable.asc .sort-icon,
-.sortable.desc .sort-icon {
-    color: #696cff;
-}
-
-.sortable.asc .sort-icon {
-    transform: rotate(180deg);
-}
-
-/* Avatar - Simplified */
-.avatar-img,
-.avatar-circle {
-    width: 36px;
-    height: 36px;
-    border-radius: 50%;
-    flex-shrink: 0;
-}
-
-.avatar-img {
-    object-fit: cover;
-}
-
-.avatar-circle {
-    background: linear-gradient(135deg, #696cff 0%, #5145cd 100%);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    color: white;
-    font-weight: 600;
-    font-size: 0.875rem;
-}
-
-/* Large Avatar for View Modal */
-.avatar-img-large,
-.avatar-circle-large {
-    width: 120px;
-    height: 120px;
-    border-radius: 50%;
-    margin: 0 auto;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-}
-
-.avatar-img-large {
-    object-fit: cover;
-}
-
-.avatar-circle-large {
-    background: linear-gradient(135deg, #696cff 0%, #5145cd 100%);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    color: white;
-    font-weight: 600;
-    font-size: 3rem;
-}
-
-/* User Info */
-.user-name {
-    font-weight: 600;
-    color: #212529;
-    font-size: 0.875rem;
-    margin-bottom: 2px;
-}
-
-/* Role Badge - Minimal */
-.role-badge {
-    display: inline-flex;
-    align-items: center;
-    gap: 4px;
-    padding: 4px 10px;
-    background: #e7e9fd;
-    color: #696cff;
-    border-radius: 6px;
-    font-size: 0.8125rem;
-    font-weight: 500;
-}
-
-.role-badge i {
-    font-size: 14px;
-}
-
-/* Status Badge */
-.status-badge {
-    display: inline-flex;
-    align-items: center;
-    gap: 4px;
-    padding: 4px 10px;
-    border-radius: 6px;
-    font-size: 0.8125rem;
-    font-weight: 500;
-}
-
-.status-active {
-    background: #d4edda;
-    color: #28a745;
-}
-
-.status-inactive {
-    background: #f8d7da;
-    color: #dc3545;
-}
-
-.status-badge i {
-    font-size: 14px;
-}
-
-/* Date Text */
-.date-text {
-    font-size: 0.8125rem;
-    color: #6c757d;
-}
-
-/* Row Number */
-.row-number {
-    font-weight: 600;
-    color: #adb5bd;
-    font-size: 0.875rem;
-}
-
-/* Action Buttons - MODERN STYLE (SAME AS PERUSAHAAN) */
-.action-buttons {
-    display: inline-flex;
-    gap: 6px;
-}
-
-.action-btn {
-    width: 34px;
-    height: 34px;
-    border: none;
-    background: #f7fafc;
-    border-radius: 8px;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    cursor: pointer;
-    transition: all 0.2s ease;
-    color: #718096;
-}
-
-.action-btn:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-}
-
-.view-btn:hover {
-    background: #bee3f8;
-    color: #2c5282;
-}
-
-.edit-btn:hover {
-    background: #e7e9fd;
-    color: #5145cd;
-}
-
-.delete-btn:hover {
-    background: #fed7d7;
-    color: #c53030;
-}
-
-.action-btn i {
-    font-size: 18px;
-}
-
-/* Form Controls */
-.form-control,
-.form-select {
-    font-size: 0.875rem;
-    border-color: #dee2e6;
-    border-radius: 6px;
-}
-
-.form-control:focus,
-.form-select:focus {
-    border-color: #696cff;
-    box-shadow: 0 0 0 3px rgba(105, 108, 255, 0.1);
-}
-
-.form-control-sm,
-.form-select-sm {
-    font-size: 0.8125rem;
-    padding: 4px 8px;
-}
-
-/* Buttons */
-.btn-sm {
-    font-size: 0.8125rem;
-    padding: 6px 16px;
-    border-radius: 6px;
-}
-
-.btn-primary {
-    background: #696cff;
-    border-color: #696cff;
-}
-
-.btn-primary:hover {
-    background: #5145cd;
-    border-color: #5145cd;
-}
-
-.btn-light {
-    background: #f8f9fa;
-    border-color: #dee2e6;
-    color: #495057;
-}
-
-.btn-light:hover {
-    background: #e9ecef;
-    border-color: #ced4da;
-}
-
-/* Empty State */
-.empty-icon {
-    font-size: 48px;
-    color: #dee2e6;
-}
-
-.empty-text {
-    color: #adb5bd;
-    margin-top: 12px;
-    font-size: 0.875rem;
-}
-
-/* Preview Image */
-.preview-image {
-    max-width: 150px;
-    max-height: 150px;
-    border-radius: 8px;
-    object-fit: cover;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-}
-
-/* Hidden Column */
-.column-hidden {
-    display: none !important;
-}
-
-/* Pagination */
-.pagination {
-    gap: 4px;
-}
-
-.page-link {
-    border-radius: 6px;
-    border-color: #dee2e6;
-    color: #495057;
-    font-size: 0.875rem;
-}
-
-.page-link:hover {
-    background: #f8f9fa;
-    border-color: #dee2e6;
-}
-
-.page-item.active .page-link {
-    background: #696cff;
-    border-color: #696cff;
-}
-
-/* Responsive */
-@media (max-width: 768px) {
-    .badge-counter .label {
-        display: none;
-    }
-    
-    .search-box input {
-        width: 150px;
-    }
-    
-    .search-box input:focus {
-        width: 180px;
-    }
-    
-    .avatar-img,
-    .avatar-circle {
-        width: 32px;
-        height: 32px;
-    }
-    
-    .table {
-        font-size: 0.8125rem;
-    }
-}
-
-/* Modal Error Alert */
-.modal-error-alert {
-    border-radius: 6px;
-    font-size: 0.875rem;
-    padding: 12px 16px;
-}
-
-.modal-error-alert strong {
-    font-weight: 600;
-}
-
-.modal-error-alert .btn-close {
-    font-size: 0.75rem;
-    padding: 8px;
-}
-</style>
-
+@endsection
+@push('scripts')
 <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 <script>
-// ===== COLUMN SETTINGS - PERSISTENT STORAGE =====
-const COLUMN_STORAGE_KEY = 'user_column_settings';
+'use strict';
+const STORAGE_KEY = 'user_column_settings';
+let allRows = [], filteredRows = [];
+let currentPage = 1, perPage = 10;
+let currentJobRole = '', currentRole = '', currentSearch = '';
+let searchTimeout = null, currentViewBtn = null;
 
-// Default column visibility settings
-const DEFAULT_COLUMN_SETTINGS = {
-    'job_role': true,
-    'no_hp': true,
-    'role': true,
-    'status': true,
-    'created_at': false,
-    'updated_at': false
+document.addEventListener('DOMContentLoaded', function () {
+    initializeData(); loadColumnSettings(); initializeEventListeners(); renderTable();
+});
+
+function initializeData() {
+    allRows = Array.from(document.querySelectorAll('#userTableBody .user-row')).map(row => ({
+        element: row, nama: row.dataset.nama, email: row.dataset.email,
+        job_role: row.dataset.job_role, job_role_id: row.dataset.job_role_id,
+        no_hp: row.dataset.no_hp, role: row.dataset.role, status: row.dataset.status,
+        created_at: row.dataset.created_at, updated_at: row.dataset.updated_at,
+    }));
+    filteredRows = [...allRows];
+}
+function initializeEventListeners() {
+    const pp = document.getElementById('perPageSelect');
+    pp.value = perPage;
+    pp.addEventListener('change', () => { perPage = parseInt(pp.value); currentPage = 1; renderTable(); });
+    document.getElementById('roleSelect').addEventListener('change', function() { currentRole = this.value; applyFilters(); });
+    const si = document.getElementById('searchInput'), sc = document.getElementById('clearSearch');
+    si.addEventListener('input', function() {
+        sc.style.display = this.value.trim() ? 'block' : 'none';
+        clearTimeout(searchTimeout);
+        searchTimeout = setTimeout(() => { currentSearch = this.value.trim().toLowerCase(); applyFilters(); }, 300);
+    });
+    sc.addEventListener('click', () => { si.value=''; sc.style.display='none'; currentSearch=''; applyFilters(); });
+    document.querySelectorAll('.column-toggle').forEach(t => t.addEventListener('change', function() { toggleColumn(this.value, this.checked); }));
+    document.querySelectorAll('.sortable').forEach(h => {
+        h.addEventListener('click', function() {
+            const col = this.dataset.column, isAsc = this.classList.contains('asc');
+            document.querySelectorAll('.sortable').forEach(x => x.classList.remove('asc','desc'));
+            this.classList.add(isAsc ? 'desc' : 'asc');
+            sortRows(col, isAsc ? 'desc' : 'asc');
+        });
+    });
+    document.addEventListener('click', function(e) {
+        if (!e.target.closest('.cdd')) document.querySelectorAll('.cdd-menu.open').forEach(m => { m.classList.remove('open'); m.previousElementSibling.classList.remove('open'); });
+    });
+    document.getElementById('columnSettingsModal')?.addEventListener('show.bs.modal', function() {
+        document.querySelectorAll('.column-toggle:not([disabled])').forEach(t => { const el = document.querySelector(`.column-${t.value}`); if(el) t.checked = !el.classList.contains('column-hidden'); });
+    });
+}
+
+function loadColumnSettings() {
+    const defaults = { job_role:true, no_hp:true, role:true, status:true, created_at:false, updated_at:false };
+    let s = { ...defaults };
+    try { const saved = localStorage.getItem(STORAGE_KEY); if(saved) s = { ...defaults, ...JSON.parse(saved) }; } catch(e) {}
+    document.querySelectorAll('.column-toggle:not([disabled])').forEach(t => { t.checked = s.hasOwnProperty(t.value) ? s[t.value] : (defaults[t.value] ?? true); toggleColumn(t.value, t.checked); });
+}
+function toggleColumn(col, show) { document.querySelectorAll(`.column-${col}`).forEach(el => el.classList.toggle('column-hidden', !show)); }
+function saveColumnSettings() {
+    const s = {};
+    document.querySelectorAll('.column-toggle:not([disabled])').forEach(t => { s[t.value] = t.checked; });
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(s));
+    bootstrap.Modal.getInstance(document.getElementById('columnSettingsModal'))?.hide();
+    Swal.fire({ icon:'success', title:'Tersimpan', showConfirmButton:false, timer:1200, confirmButtonColor:'#5145cd' });
+}
+function resetColumns() {
+    const defaults = { job_role:true, no_hp:true, role:true, status:true, created_at:false, updated_at:false };
+    document.querySelectorAll('.column-toggle:not([disabled])').forEach(t => { t.checked = defaults[t.value]??true; toggleColumn(t.value, t.checked); });
+}
+function filterByJobRole(id) {
+    currentJobRole = String(id); currentPage = 1;
+    document.querySelectorAll('.counter-pill').forEach(p => p.classList.toggle('active', p.dataset.jobrole === currentJobRole));
+    applyFilters();
+}
+function applyFilters() {
+    filteredRows = allRows.filter(row => {
+        if (currentJobRole !== '' && String(row.job_role_id) !== currentJobRole) return false;
+        if (currentRole    !== '' && row.role !== currentRole) return false;
+        if (currentSearch  !== '' && !row.nama.includes(currentSearch) && !row.email.includes(currentSearch) && !row.job_role.includes(currentSearch)) return false;
+        return true;
+    });
+    currentPage = 1; renderTable();
+}
+function sortRows(column, direction) {
+    filteredRows.sort((a, b) => {
+        if (['created_at','updated_at'].includes(column)) return direction==='asc' ? new Date(a[column])-new Date(b[column]) : new Date(b[column])-new Date(a[column]);
+        if (column === 'status') return direction==='asc' ? parseInt(a[column])-parseInt(b[column]) : parseInt(b[column])-parseInt(a[column]);
+        return direction==='asc' ? String(a[column]||'').localeCompare(String(b[column]||'')) : String(b[column]||'').localeCompare(String(a[column]||''));
+    });
+    renderTable();
+}
+function renderTable() {
+    const tbody = document.getElementById('userTableBody');
+    tbody.innerHTML = '';
+    const start = (currentPage - 1) * perPage;
+    const page  = filteredRows.slice(start, Math.min(start + perPage, filteredRows.length));
+    if (page.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="9"><div class="empty-state"><i class='bx bx-user-x'></i><p>Tidak ada data user yang ditemukan.</p></div></td></tr>`;
+    } else {
+        page.forEach((row, idx) => { const clone = row.element.cloneNode(true); const n = clone.querySelector('.row-no'); if(n) n.textContent = start + idx + 1; tbody.appendChild(clone); });
+    }
+    const end = Math.min(start + perPage, filteredRows.length);
+    document.getElementById('showingStart').textContent = filteredRows.length === 0 ? 0 : start + 1;
+    document.getElementById('showingEnd').textContent   = end;
+    document.getElementById('totalEntries').textContent = filteredRows.length;
+    renderPagination();
+}
+function renderPagination() {
+    const ctrl = document.getElementById('paginationControls');
+    const total = Math.ceil(filteredRows.length / perPage);
+    if (total <= 1) { ctrl.innerHTML = ''; return; }
+    let html = `<li class="page-item ${currentPage===1?'disabled':''}"><a class="page-link" href="javascript:void(0)" onclick="goToPage(${currentPage-1})"><i class='bx bx-chevron-left'></i></a></li>`;
+    let sp = Math.max(1,currentPage-2), ep = Math.min(total,sp+4);
+    if (ep-sp<4) sp = Math.max(1,ep-4);
+    if (sp>1) { html+=`<li class="page-item"><a class="page-link" href="javascript:void(0)" onclick="goToPage(1)">1</a></li>`; if(sp>2) html+=`<li class="page-item disabled"><span class="page-link">…</span></li>`; }
+    for (let i=sp;i<=ep;i++) html+=`<li class="page-item ${i===currentPage?'active':''}"><a class="page-link" href="javascript:void(0)" onclick="goToPage(${i})">${i}</a></li>`;
+    if (ep<total) { if(ep<total-1) html+=`<li class="page-item disabled"><span class="page-link">…</span></li>`; html+=`<li class="page-item"><a class="page-link" href="javascript:void(0)" onclick="goToPage(${total})">${total}</a></li>`; }
+    html+=`<li class="page-item ${currentPage===total?'disabled':''}"><a class="page-link" href="javascript:void(0)" onclick="goToPage(${currentPage+1})"><i class='bx bx-chevron-right'></i></a></li>`;
+    ctrl.innerHTML = html;
+}
+function goToPage(page) { const t=Math.ceil(filteredRows.length/perPage); if(page<1||page>t)return; currentPage=page; renderTable(); }
+function formatDate(str) { if(!str)return'—'; const d=new Date(str); return d.toLocaleDateString('id-ID',{day:'2-digit',month:'2-digit',year:'numeric'})+' '+d.toLocaleTimeString('id-ID',{hour:'2-digit',minute:'2-digit'}); }
+
+const ROLE_CONFIG = {
+    admin:    { icon:'bx-key',        label:'Admin' },
+    PM:       { icon:'bx-task',         label:'Project Manager' },
+    karyawan: { icon:'bx-user-circle',  label:'Karyawan' },
+    klien:    { icon:'bx-shie   ld-alt-2', label:'Klien' }
+
 };
 
-// Initialize column settings on page load
-document.addEventListener('DOMContentLoaded', function() {
-    loadColumnSettings();
-    initializeEventListeners();
-    
-    // Show clear search button if search has value
-    const searchInput = document.getElementById('searchInput');
-    const clearSearchBtn = document.getElementById('clearSearch');
-    if (searchInput && searchInput.value.trim().length > 0) {
-        clearSearchBtn.style.display = 'block';
-    }
-});
-
-// Load column settings from localStorage
-function loadColumnSettings() {
-    try {
-        const savedSettings = localStorage.getItem(COLUMN_STORAGE_KEY);
-        
-        if (savedSettings) {
-            const settings = JSON.parse(savedSettings);
-            
-            // Apply saved settings to checkboxes and columns
-            document.querySelectorAll('.column-toggle:not([disabled])').forEach(toggle => {
-                const columnName = toggle.value;
-                if (settings.hasOwnProperty(columnName)) {
-                    toggle.checked = settings[columnName];
-                    toggleColumn(columnName, settings[columnName]);
-                } else {
-                    // If column not in saved settings, use default
-                    if (DEFAULT_COLUMN_SETTINGS.hasOwnProperty(columnName)) {
-                        toggle.checked = DEFAULT_COLUMN_SETTINGS[columnName];
-                        toggleColumn(columnName, DEFAULT_COLUMN_SETTINGS[columnName]);
-                    } else {
-                        toggleColumn(columnName, toggle.checked);
-                    }
-                }
-            });
-        } else {
-            // No saved settings, use defaults
-            applyDefaultColumnSettings();
-        }
-    } catch (e) {
-        console.error('Error loading column settings:', e);
-        applyDefaultColumnSettings();
-    }
-}
-
-// Apply default column settings
-function applyDefaultColumnSettings() {
-    document.querySelectorAll('.column-toggle:not([disabled])').forEach(toggle => {
-        const columnName = toggle.value;
-        if (DEFAULT_COLUMN_SETTINGS.hasOwnProperty(columnName)) {
-            toggle.checked = DEFAULT_COLUMN_SETTINGS[columnName];
-            toggleColumn(columnName, DEFAULT_COLUMN_SETTINGS[columnName]);
-        } else {
-            toggleColumn(columnName, toggle.checked);
-        }
-    });
-}
-
-// Save column settings to localStorage
-function saveColumnSettingsToStorage() {
-    const settings = {};
-    document.querySelectorAll('.column-toggle:not([disabled])').forEach(toggle => {
-        settings[toggle.value] = toggle.checked;
-    });
-    localStorage.setItem(COLUMN_STORAGE_KEY, JSON.stringify(settings));
-}
-
-// Toggle column visibility
-function toggleColumn(columnValue, show) {
-    const elements = document.querySelectorAll(`.column-${columnValue}`);
-    elements.forEach(el => {
-        if (show) {
-            el.classList.remove('column-hidden');
-        } else {
-            el.classList.add('column-hidden');
-        }
-    });
-}
-
-// Save column settings (called from modal)
-function saveColumnSettings() {
-    // Update column visibility based on current checkbox states
-    document.querySelectorAll('.column-toggle:not([disabled])').forEach(toggle => {
-        toggleColumn(toggle.value, toggle.checked);
-    });
-    
-    // Save to localStorage
-    saveColumnSettingsToStorage();
-    
-    // Close modal
-    const modal = bootstrap.Modal.getInstance(document.getElementById('columnSettingsModal'));
-    if (modal) modal.hide();
-    
-    // Show success message
-    Swal.fire({
-        icon: 'success',
-        title: 'Berhasil!',
-        text: 'Pengaturan kolom berhasil disimpan',
-        showConfirmButton: false,
-        timer: 1500
-    });
-}
-
-// Reset columns to default
-function resetColumns() {
-    document.querySelectorAll('.column-toggle:not([disabled])').forEach(toggle => {
-        const columnName = toggle.value;
-        if (DEFAULT_COLUMN_SETTINGS.hasOwnProperty(columnName)) {
-            toggle.checked = DEFAULT_COLUMN_SETTINGS[columnName];
-            toggleColumn(columnName, DEFAULT_COLUMN_SETTINGS[columnName]);
-        } else {
-            toggle.checked = true;
-            toggleColumn(columnName, true);
-        }
-    });
-    
-    saveColumnSettingsToStorage();
-}
-
-// Sync checkboxes with column visibility when modal opens
-document.getElementById('columnSettingsModal')?.addEventListener('show.bs.modal', function() {
-    document.querySelectorAll('.column-toggle:not([disabled])').forEach(toggle => {
-        const columnName = toggle.value;
-        const element = document.querySelector(`.column-${columnName}`);
-        if (element) {
-            const isVisible = !element.classList.contains('column-hidden');
-            toggle.checked = isVisible;
-        }
-    });
-});
-
-// ===== INITIALIZE EVENT LISTENERS =====
-function initializeEventListeners() {
-    // Search Input Handler with Debounce
-    const searchInput = document.getElementById('searchInput');
-    const clearSearchBtn = document.getElementById('clearSearch');
-    const filterForm = document.getElementById('filterForm');
-    
-    if (searchInput) {
-        searchInput.addEventListener('input', function() {
-            const searchValue = this.value.trim();
-            
-            if (searchValue.length > 0) {
-                clearSearchBtn.style.display = 'block';
-            } else {
-                clearSearchBtn.style.display = 'none';
-            }
-            
-            clearTimeout(window.searchTimeout);
-            
-            window.searchTimeout = setTimeout(function() {
-                if (searchValue.length >= 2 || searchValue.length === 0) {
-                    filterForm.submit();
-                }
-            }, 300);
-        });
-    }
-    
-    // Clear Search Button
-    if (clearSearchBtn) {
-        clearSearchBtn.addEventListener('click', function() {
-            searchInput.value = '';
-            this.style.display = 'none';
-            filterForm.submit();
-        });
-    }
-    
-    // Role Filter Change
-    const roleSelect = document.getElementById('roleSelect');
-    if (roleSelect) {
-        roleSelect.addEventListener('change', function() {
-            filterForm.submit();
-        });
-    }
-    
-    // Per Page Change
-    const perPageSelect = document.getElementById('perPageSelect');
-    if (perPageSelect) {
-        perPageSelect.addEventListener('change', function() {
-            filterForm.submit();
-        });
-    }
-    
-    // Job Role Filter Click Handlers
-    document.querySelectorAll('.job-role-filter').forEach(link => {
-        link.addEventListener('click', function(e) {
-            e.preventDefault();
-            const jobRoleId = this.dataset.jobRole;
-            const jobRoleInput = document.getElementById('jobRoleInput');
-            const filterForm = document.getElementById('filterForm');
-            
-            if (jobRoleInput) {
-                jobRoleInput.value = jobRoleId;
-            }
-            
-            document.querySelectorAll('.badge-counter').forEach(badge => {
-                badge.classList.remove('active');
-            });
-            this.querySelector('.badge-counter').classList.add('active');
-            
-            filterForm.submit();
-        });
-    });
-    
-    // Sortable Headers
-    document.querySelectorAll('.sortable').forEach(header => {
-        header.addEventListener('click', function() {
-            const column = this.dataset.column;
-            const isAsc = this.classList.contains('asc');
-            
-            document.querySelectorAll('.sortable').forEach(h => h.classList.remove('asc', 'desc'));
-            this.classList.add(isAsc ? 'desc' : 'asc');
-            
-            sortTable(column, isAsc ? 'desc' : 'asc');
-        });
-    });
-}
-
-// ===== SORT TABLE =====
-function sortTable(column, direction) {
-    const tbody = document.getElementById('userTableBody');
-    const rows = Array.from(tbody.querySelectorAll('.user-row'));
-    
-    rows.sort((a, b) => {
-        let aVal = a.dataset[column] || '';
-        let bVal = b.dataset[column] || '';
-        
-        if (column === 'created_at' || column === 'updated_at') {
-            aVal = new Date(aVal).getTime() || 0;
-            bVal = new Date(bVal).getTime() || 0;
-            return direction === 'asc' ? aVal - bVal : bVal - aVal;
-        }
-        
-        if (column === 'status') {
-            aVal = parseInt(aVal);
-            bVal = parseInt(bVal);
-            return direction === 'asc' ? aVal - bVal : bVal - aVal;
-        }
-        
-        return direction === 'asc' ? aVal.localeCompare(bVal) : bVal.localeCompare(aVal);
-    });
-    
-    rows.forEach(row => tbody.appendChild(row));
-    updateRowNumbers();
-}
-
-// ===== UPDATE ROW NUMBERS =====
-function updateRowNumbers() {
-    const visibleRows = Array.from(document.querySelectorAll('.user-row')).filter(row => row.style.display !== 'none');
-    visibleRows.forEach((row, index) => {
-        const numberCell = row.querySelector('.row-number');
-        if (numberCell) numberCell.textContent = index + 1;
-    });
-}
-
-// ===== VIEW USER =====
-function viewUser(userId) {
-    const button = event.target.closest('[data-user]');
-    const user = JSON.parse(button.dataset.user);
-    const jobRoleName = button.dataset.jobRoleName || '-';
-    const jobRoleColor = button.dataset.jobRoleColor || 'default';
-    
-    // Set Foto
-    const fotoContainer = document.getElementById('view_foto_container');
-    if (user.foto) {
-        const photoUrl = `/storage/${user.foto}`;
-        fotoContainer.innerHTML = `<img src="${photoUrl}" alt="${user.nama}" class="avatar-img-large">`;
+/* ── Job Role UI: karyawan=dropdown, lainnya=info otomatis ── */
+function applyJobRoleUI(prefix, role) {
+    const fieldEl  = document.getElementById(prefix + 'JobRoleField');
+    const infoEl   = document.getElementById(prefix + 'JobRoleInfo');
+    const infoText = document.getElementById(prefix + 'JobRoleInfoText');
+    if (!fieldEl || !infoEl) return;
+    if (role === 'karyawan') {
+        fieldEl.style.display = 'block'; infoEl.style.display = 'none';
+    } else if (role === '') {
+        fieldEl.style.display = 'none';  infoEl.style.display = 'none';
     } else {
-        fotoContainer.innerHTML = `<div class="avatar-circle-large">${user.nama.charAt(0).toUpperCase()}</div>`;
+        fieldEl.style.display = 'none';  infoEl.style.display = 'block';
+        const labels = { admin:'Admin', PM:'Project Manager', klien:'Klien' };
+        if (infoText) infoText.textContent = labels[role] || '— otomatis —';
     }
-    
-    // Set Data
-    document.getElementById('view_nama').textContent = user.nama;
-    document.getElementById('view_email').textContent = user.email;
-    document.getElementById('view_no_hp').textContent = user.no_hp || '-';
-    document.getElementById('view_id_user').textContent = user.id_user;
-    
-    // Set Role Badge
-    const roleConfig = {
-        'admin': {icon: 'bx-crown', label: 'Admin'},
-        'PM': {icon: 'bx-briefcase', label: 'PM'},
-        'karyawan': {icon: 'bx-user', label: 'Karyawan'},
-        'klien': {icon: 'bx-shield-alt-2', label: 'Klien'}
+}
+function handleAddRoleChange(role) {
+    applyJobRoleUI('add', role);
+    if (role !== 'karyawan') { document.getElementById('add_id_job_role').value = ''; const t = document.getElementById('addCddTxt'); if(t) t.textContent = '— Pilih Job Role —'; }
+}
+function handleEditRoleChange(role) {
+    applyJobRoleUI('edit', role);
+    if (role !== 'karyawan') { document.getElementById('edit_id_job_role').value = ''; const t = document.getElementById('editSelectedText'); if(t) t.textContent = '— Pilih Job Role —'; }
+}
+
+/* ── VIEW ── */
+function viewUser(btn) {
+    const d = JSON.parse(btn.dataset.item);
+    const jobRoleName = btn.dataset.jobRoleName || '—', jobRoleColor = btn.dataset.jobRoleColor || 'purple-1';
+    currentViewBtn = btn;
+    const fc = document.getElementById('view_foto_container');
+    fc.innerHTML = d.foto
+        ? `<img src="/storage/${d.foto}" alt="${d.nama}" style="width:88px;height:88px;border-radius:50%;object-fit:cover;border:3px solid var(--p-soft);">`
+        : `<div class="av-lg">${d.nama.charAt(0).toUpperCase()}</div>`;
+    document.getElementById('view_nama').textContent       = d.nama;
+    document.getElementById('view_email').textContent      = d.email;
+    document.getElementById('view_no_hp').textContent      = d.no_hp || '—';
+    document.getElementById('view_created_at').textContent = formatDate(d.created_at);
+    document.getElementById('view_updated_at').textContent = formatDate(d.updated_at);
+    const rc = ROLE_CONFIG[d.role] || ROLE_CONFIG.karyawan;
+    const roleClass = 'role-' + (d.role === 'PM' ? 'pm' : d.role);
+    document.getElementById('view_role_badge').innerHTML = `<span class="role-pill ${roleClass}"><i class='bx ${rc.icon}' style="font-size:13px;"></i> ${rc.label}</span>`;
+    document.getElementById('view_job_role').innerHTML = (jobRoleName && jobRoleName !== '-')
+        ? `<span class="jr-pill ${jobRoleColor}">${jobRoleName}</span>`
+        : '<span style="color:var(--ink-400);font-size:13px;">—</span>';
+    document.getElementById('view_status_badge').innerHTML = d.status
+        ? '<span class="status-pill pill-active"><span class="dot"></span>Aktif</span>'
+        : '<span class="status-pill pill-inactive"><span class="dot"></span>Non-Aktif</span>';
+    document.getElementById('view_edit_btn').onclick = function() {
+        bootstrap.Modal.getInstance(document.getElementById('viewUserModal'))?.hide();
+        setTimeout(() => { if(currentViewBtn) editUser(currentViewBtn); }, 300);
     };
-    const config = roleConfig[user.role] || roleConfig['karyawan'];
-    document.getElementById('view_role_badge').innerHTML = `
-        <span class="role-badge">
-            <i class='bx ${config.icon}'></i> ${config.label}
-        </span>
-    `;
-    
-    // Set Status Badge
-    const statusBadge = document.getElementById('view_status_badge');
-    if (user.status) {
-        statusBadge.innerHTML = `
-            <span class="status-badge status-active">
-                <i class='bx bx-check-circle'></i> Aktif
-            </span>
-        `;
-    } else {
-        statusBadge.innerHTML = `
-            <span class="status-badge status-inactive">
-                <i class='bx bx-x-circle'></i> Non-Aktif
-            </span>
-        `;
-    }
-    
-    // Set Job Role
-    const jobRoleElement = document.getElementById('view_job_role');
-    if (jobRoleName && jobRoleName !== '-') {
-        jobRoleElement.innerHTML = `
-            <span class="job-role-badge job-role-${jobRoleColor}">
-                ${jobRoleName}
-            </span>
-        `;
-    } else {
-        jobRoleElement.innerHTML = `<p class="fw-semibold mb-0">-</p>`;
-    }
-    
-    // Set Timestamps
-    document.getElementById('view_created_at').textContent = user.created_at 
-        ? new Date(user.created_at).toLocaleString('id-ID', {
-            day: '2-digit',
-            month: '2-digit',
-            year: 'numeric',
-            hour: '2-digit',
-            minute: '2-digit'
-        })
-        : '-';
-    
-    document.getElementById('view_updated_at').textContent = user.updated_at 
-        ? new Date(user.updated_at).toLocaleString('id-ID', {
-            day: '2-digit',
-            month: '2-digit',
-            year: 'numeric',
-            hour: '2-digit',
-            minute: '2-digit'
-        })
-        : '-';
-    
     new bootstrap.Modal(document.getElementById('viewUserModal')).show();
 }
 
-// ===== EDIT USER =====
-function editUser(userId) {
-    const button = event.target.closest('[data-user]');
-    const user = JSON.parse(button.dataset.user);
-    const jobRoleId = button.dataset.jobRoleId || '';
-    
-    // Set basic fields
-    document.getElementById('edit_nama').value = user.nama;
-    document.getElementById('edit_email').value = user.email;
-    document.getElementById('edit_role').value = user.role;
-    document.getElementById('edit_no_hp').value = user.no_hp || '';
-    document.getElementById('edit_status').value = user.status ? '1' : '0';
-    document.getElementById('editUserForm').action = `/master-data-users/${user.id_user}`;
-    
-    // Toggle job role field berdasarkan role
-    toggleJobRoleField(user.role, 'edit');
-    
-    // Set job role value dengan custom dropdown
-    if (jobRoleId) {
-        // Find the option text
-        const option = document.querySelector(`#editJobRoleOptions .dropdown-option[data-value="${jobRoleId}"]`);
-        const optionText = option ? option.getAttribute('data-text') : '-- Pilih Job Role --';
-        
-        // Set the value and display
-        selectJobRole('edit', jobRoleId, optionText);
+/* ── EDIT ── */
+function editUser(btn) {
+    const d = JSON.parse(btn.dataset.item), jobRoleId = btn.dataset.jobRoleId || '', isKlien = (d.role === 'klien');
+    document.getElementById('edit_nama').value     = d.nama;
+    document.getElementById('edit_email').value    = d.email;
+    document.getElementById('edit_no_hp').value    = d.no_hp || '';
+    document.getElementById('edit_status').value   = d.status ? '1' : '0';
+    document.getElementById('edit_password').value = '';
+    document.getElementById('editUserForm').action = `/master-data-users/${d.id_user}`;
+    const roleSelect = document.getElementById('edit_role'), roleHidden = document.getElementById('edit_role_hidden'), roleBadge = document.getElementById('edit_role_klien_badge');
+    roleSelect.value = d.role;
+    if (isKlien) {
+        roleSelect.disabled = true; roleSelect.removeAttribute('name');
+        roleHidden.value = 'klien'; roleHidden.name = 'role';
+        roleBadge.style.display = 'inline-flex';
     } else {
-        selectJobRole('edit', '', '-- Pilih Job Role --');
+        roleSelect.disabled = false; roleSelect.name = 'role';
+        roleHidden.value = ''; roleHidden.removeAttribute('name');
+        roleBadge.style.display = 'none';
     }
-    
-    // Reset new photo preview
-    document.getElementById('newPhotoPreview').style.display = 'none';
+    applyJobRoleUI('edit', d.role);
+    if (d.role === 'karyawan' && jobRoleId) {
+        const opt = document.querySelector(`#editCddOpts .cdd-opt[data-value="${jobRoleId}"]`);
+        cddSelect('edit', jobRoleId, opt ? opt.dataset.text : '— Pilih Job Role —');
+    } else {
+        cddSelect('edit','','— Pilih Job Role —');
+    }
+    const cp = document.getElementById('currentPhotoPreview');
+    cp.innerHTML = d.foto ? `<img src="/storage/${d.foto}" alt="${d.nama}">` : `<div class="av" style="width:60px;height:60px;font-size:22px;">${d.nama.charAt(0).toUpperCase()}</div>`;
+    document.getElementById('editPhotoPreview').style.display = 'none';
     document.getElementById('edit_foto').value = '';
-    document.getElementById('clearEditPhoto').style.display = 'none';
-    
-    // Set current photo
-    const currentPhotoPreview = document.getElementById('currentPhotoPreview');
-    if (user.foto) {
-        const photoUrl = `/storage/${user.foto}`;
-        currentPhotoPreview.innerHTML = `<img src="${photoUrl}" alt="${user.nama}" class="preview-image">`;
-    } else {
-        currentPhotoPreview.innerHTML = `<div class="avatar-circle">${user.nama.charAt(0).toUpperCase()}</div>`;
-    }
-    
     new bootstrap.Modal(document.getElementById('editUserModal')).show();
 }
 
-// ===== DELETE USER =====
-function deleteUser(userId, userName) {
-    Swal.fire({
-        title: 'Hapus User?',
-        html: `Anda akan menghapus <strong>${userName}</strong>`,
-        icon: 'warning',
-        showCancelButton: true,
-        confirmButtonColor: '#e53e3e',
-        cancelButtonColor: '#718096',
-        confirmButtonText: 'Ya, Hapus',
-        cancelButtonText: 'Batal',
-        reverseButtons: true
-    }).then((result) => {
-        if (result.isConfirmed) {
-            const form = document.createElement('form');
-            form.method = 'POST';
-            form.action = `/master-data-users/${userId}`;
-            form.innerHTML = `
-                <input type="hidden" name="_token" value="{{ csrf_token() }}">
-                <input type="hidden" name="_method" value="DELETE">
-            `;
-            document.body.appendChild(form);
-            form.submit();
-        }
-    });
+/* ── DELETE ── */
+function deleteUser(id, nama) {
+    Swal.fire({ title:'Hapus User?', html:`Tindakan ini akan menghapus <strong>${nama}</strong> secara permanen.`, icon:'warning', showCancelButton:true, confirmButtonColor:'#DC2626', cancelButtonColor:'#6B7280', confirmButtonText:'Hapus', cancelButtonText:'Batal' })
+    .then(r => { if(r.isConfirmed) { const f=document.createElement('form'); f.method='POST'; f.action=`/master-data-users/${id}`; f.innerHTML=`<input type="hidden" name="_token" value="{{ csrf_token() }}"><input type="hidden" name="_method" value="DELETE">`; document.body.appendChild(f); f.submit(); } });
 }
 
-// ===== TOGGLE JOB ROLE FIELD =====
-function toggleJobRoleField(role, formType = 'add') {
-    const jobRoleField = formType === 'edit' 
-        ? document.getElementById('editJobRoleField') 
-        : document.getElementById('addJobRoleField');
-    
-    const hiddenInput = formType === 'edit' 
-        ? document.getElementById('edit_id_job_role') 
-        : document.getElementById('add_id_job_role');
-    
-    if (role === 'klien') {
-        jobRoleField.style.display = 'none';
-        if (hiddenInput) {
-            hiddenInput.value = '';
-        }
-        // Reset dropdown display
-        const display = jobRoleField.querySelector('.dropdown-display .selected-text');
-        if (display) {
-            display.textContent = '-- Pilih Job Role --';
-        }
-    } else {
-        jobRoleField.style.display = 'block';
-    }
+/* ── Custom Dropdown ── */
+function cddToggle(type) { const menu=document.getElementById(type+'CddMenu'), disp=menu.previousElementSibling; document.querySelectorAll('.cdd-menu.open').forEach(m => { if(m!==menu){m.classList.remove('open');m.previousElementSibling.classList.remove('open');} }); menu.classList.toggle('open'); disp.classList.toggle('open'); }
+function cddFilter(type, val) { document.querySelectorAll(`#${type}CddOpts .cdd-opt`).forEach(o => { const txt=(o.dataset.text||o.textContent).toLowerCase(); o.classList.toggle('hidden',!txt.includes(val.toLowerCase())); }); }
+function cddSelect(type, value, text) {
+    document.getElementById(type+'_id_job_role').value = value;
+    const txt = type==='edit' ? document.getElementById('editSelectedText') : document.getElementById(type+'CddTxt');
+    if(txt) txt.textContent = text;
+    document.querySelectorAll(`#${type}CddOpts .cdd-opt`).forEach(o => o.classList.toggle('selected', o.dataset.value===value));
+    const menu=document.getElementById(type+'CddMenu');
+    if(menu) { menu.classList.remove('open'); menu.previousElementSibling.classList.remove('open'); }
+    const si=menu?.querySelector('.cdd-search input'); if(si) { si.value=''; cddFilter(type,''); }
 }
-
-// ===== CUSTOM SEARCH DROPDOWN FUNCTIONS =====
-function toggleDropdown(formType) {
-    const dropdown = document.getElementById(formType + 'JobRoleDropdown');
-    const display = dropdown.previousElementSibling;
-    
-    // Close other dropdowns
-    document.querySelectorAll('.dropdown-menu-custom').forEach(d => {
-        if (d !== dropdown) {
-            d.classList.remove('show');
-            d.previousElementSibling.classList.remove('active');
-        }
-    });
-    
-    dropdown.classList.toggle('show');
-    display.classList.toggle('active');
+function previewPhoto(event, imgId, previewId) {
+    const file=event.target.files[0]; if(!file)return;
+    if(!['image/jpeg','image/jpg','image/png'].includes(file.type)) { Swal.fire({icon:'error',title:'Format Tidak Valid',text:'Gunakan JPG, JPEG, atau PNG',confirmButtonColor:'#5145cd'}); event.target.value=''; return; }
+    if(file.size>2*1024*1024) { Swal.fire({icon:'error',title:'Terlalu Besar',text:'Ukuran foto maksimal 2MB',confirmButtonColor:'#5145cd'}); event.target.value=''; return; }
+    const reader=new FileReader(); reader.onload=e => { document.getElementById(imgId).src=e.target.result; document.getElementById(previewId).style.display='flex'; }; reader.readAsDataURL(file);
 }
+function clearPhoto(inputId, imgId, previewId) { document.getElementById(inputId).value=''; document.getElementById(imgId).src=''; document.getElementById(previewId).style.display='none'; }
+function togglePw(inputId, iconId) { const inp=document.getElementById(inputId), ic=document.getElementById(iconId), show=inp.type==='password'; inp.type=show?'text':'password'; ic.className=show?'bx bx-show':'bx bx-hide'; }
 
-function filterJobRoles(formType, searchValue) {
-    const options = document.getElementById(formType + 'JobRoleOptions');
-    const allOptions = options.querySelectorAll('.dropdown-option');
-    const search = searchValue.toLowerCase();
-    
-    allOptions.forEach(option => {
-        const text = option.getAttribute('data-text') || option.textContent;
-        if (text.toLowerCase().includes(search)) {
-            option.classList.remove('hidden');
-        } else {
-            option.classList.add('hidden');
-        }
-    });
-}
-
-function selectJobRole(formType, value, text) {
-    const hiddenInput = document.getElementById(formType + '_id_job_role');
-    const display = document.querySelector(`#${formType}JobRoleDropdown`).previousElementSibling;
-    const selectedText = display.querySelector('.selected-text');
-    const dropdown = document.getElementById(formType + 'JobRoleDropdown');
-    const options = document.getElementById(formType + 'JobRoleOptions');
-    
-    // Update hidden input
-    hiddenInput.value = value;
-    
-    // Update display text
-    selectedText.textContent = text;
-    
-    // Update selected option styling
-    options.querySelectorAll('.dropdown-option').forEach(opt => {
-        opt.classList.remove('selected');
-        if (opt.getAttribute('data-value') === value) {
-            opt.classList.add('selected');
-        }
-    });
-    
-    // Close dropdown
-    dropdown.classList.remove('show');
-    display.classList.remove('active');
-    
-    // Reset search
-    const searchInput = dropdown.querySelector('.dropdown-search input');
-    if (searchInput) {
-        searchInput.value = '';
-        filterJobRoles(formType, '');
-    }
-}
-
-// Close dropdown when clicking outside
-document.addEventListener('click', function(e) {
-    if (!e.target.closest('.custom-search-dropdown')) {
-        document.querySelectorAll('.dropdown-menu-custom').forEach(dropdown => {
-            dropdown.classList.remove('show');
-            dropdown.previousElementSibling.classList.remove('active');
-        });
-    }
-});
-
-// ===== PHOTO PREVIEW =====
-function previewAddPhoto(event) {
-    const file = event.target.files[0];
-    const previewContainer = document.getElementById('addPhotoPreview');
-    const previewImg = document.getElementById('addPhotoImg');
-    const clearBtn = document.getElementById('clearAddPhoto');
-    
-    if (file) {
-        if (!validatePhoto(file, 'add')) {
-            event.target.value = '';
+['addUserForm','editUserForm'].forEach(formId => {
+    const form=document.getElementById(formId); if(!form)return;
+    form.addEventListener('submit', function(e) {
+        e.preventDefault();
+        const isEdit = formId==='editUserForm';
+        const roleVal = isEdit ? document.getElementById('edit_role').value : document.getElementById('add_role').value;
+        const jrVal   = document.getElementById(isEdit ? 'edit_id_job_role' : 'add_id_job_role').value;
+        // Hanya karyawan yg wajib pilih job role manual
+        if (roleVal === 'karyawan' && !jrVal) {
+            Swal.fire({icon:'warning',title:'Job Role Wajib',text:'Karyawan harus memilih job role.',confirmButtonColor:'#5145cd'});
             return;
         }
-        
-        const reader = new FileReader();
-        reader.onload = function(e) {
-            previewImg.src = e.target.result;
-            previewContainer.style.display = 'block';
-            clearBtn.style.display = 'block';
-        };
-        reader.readAsDataURL(file);
-    }
-}
-
-function previewNewPhoto(event) {
-    const file = event.target.files[0];
-    const previewContainer = document.getElementById('newPhotoPreview');
-    const previewImg = document.getElementById('newPhotoImg');
-    const clearBtn = document.getElementById('clearEditPhoto');
-    
-    if (file) {
-        if (!validatePhoto(file, 'edit')) {
-            event.target.value = '';
-            return;
-        }
-        
-        const reader = new FileReader();
-        reader.onload = function(e) {
-            previewImg.src = e.target.result;
-            previewContainer.style.display = 'block';
-            clearBtn.style.display = 'block';
-        };
-        reader.readAsDataURL(file);
-    }
-}
-
-function clearAddPhotoPreview() {
-    document.getElementById('add_foto').value = '';
-    document.getElementById('addPhotoPreview').style.display = 'none';
-    document.getElementById('clearAddPhoto').style.display = 'none';
-}
-
-function clearEditPhotoPreview() {
-    document.getElementById('edit_foto').value = '';
-    document.getElementById('newPhotoPreview').style.display = 'none';
-    document.getElementById('clearEditPhoto').style.display = 'none';
-}
-
-// ===== PHOTO VALIDATION =====
-function validatePhoto(file, formType = 'add') {
-    const validTypes = ['image/jpeg', 'image/jpg', 'image/png'];
-    const maxSize = 2 * 1024 * 1024; // 2MB in bytes
-    
-    const modalId = formType === 'add' ? 'addUserModal' : 'editUserModal';
-    const modal = document.getElementById(modalId);
-    
-    if (!validTypes.includes(file.type)) {
-        showModalError(modal, 'Format File Tidak Valid', 'Harap upload foto dengan format JPG, JPEG, atau PNG');
-        return false;
-    }
-    
-    if (file.size > maxSize) {
-        showModalError(modal, 'Ukuran File Terlalu Besar', 'Ukuran foto maksimal 2MB');
-        return false;
-    }
-    
-    return true;
-}
-
-function showModalError(modal, title, message) {
-    const existingAlert = modal.querySelector('.modal-error-alert');
-    if (existingAlert) {
-        existingAlert.remove();
-    }
-    
-    const alertDiv = document.createElement('div');
-    alertDiv.className = 'alert alert-danger alert-dismissible fade show modal-error-alert';
-    alertDiv.style.margin = '0 0 15px 0';
-    alertDiv.innerHTML = `
-        <strong>${title}!</strong> ${message}
-        <button type="button" class="btn-close" onclick="this.parentElement.remove()"></button>
-    `;
-    
-    const modalBody = modal.querySelector('.modal-body');
-    modalBody.insertBefore(alertDiv, modalBody.firstChild);
-    
-    setTimeout(() => {
-        if (alertDiv.parentElement) {
-            alertDiv.remove();
-        }
-    }, 5000);
-}
-
-// ===== TOGGLE PASSWORD =====
-function togglePassword(inputId, iconId) {
-    const input = document.getElementById(inputId);
-    const icon = document.getElementById(iconId);
-    
-    if (input.type === 'password') {
-        input.type = 'text';
-        icon.classList.remove('bx-hide');
-        icon.classList.add('bx-show');
-    } else {
-        input.type = 'password';
-        icon.classList.remove('bx-show');
-        icon.classList.add('bx-hide');
-    }
-}
-
-// ===== FORM SUBMISSIONS =====
-['addUserForm', 'editUserForm'].forEach(formId => {
-    const form = document.getElementById(formId);
-    if (form) {
-        form.addEventListener('submit', function(e) {
-            e.preventDefault();
-            
-            // Validasi job role untuk role karyawan dan PM
-            const isEditForm = formId === 'editUserForm';
-            const roleField = isEditForm ? 'edit_role' : 'add_role';
-            const jobRoleField = isEditForm ? 'edit_id_job_role' : 'add_id_job_role';
-            
-            const role = document.getElementById(roleField).value;
-            const jobRoleValue = document.getElementById(jobRoleField).value;
-            
-            if ((role === 'karyawan' || role === 'PM') && (!jobRoleValue || jobRoleValue === '')) {
-                const modalId = isEditForm ? 'editUserModal' : 'addUserModal';
-                const modal = document.getElementById(modalId);
-                showModalError(modal, 'Job Role Wajib Dipilih', 'Untuk role karyawan atau PM, job role harus dipilih');
-                return;
-            }
-            
-            // Tutup modal dan submit
-            const modal = bootstrap.Modal.getInstance(document.getElementById(isEditForm ? 'editUserModal' : 'addUserModal'));
-            if (modal) modal.hide();
-            
-            setTimeout(() => {
-                Swal.fire({
-                    title: 'Memproses...',
-                    allowOutsideClick: false,
-                    didOpen: () => Swal.showLoading()
-                });
-                this.submit();
-            }, 300);
-        });
-    }
+        const mid = isEdit?'editUserModal':'addUserModal';
+        bootstrap.Modal.getInstance(document.getElementById(mid))?.hide();
+        setTimeout(() => { Swal.fire({title:'Menyimpan...',allowOutsideClick:false,didOpen:()=>Swal.showLoading()}); this.submit(); }, 300);
+    });
 });
-
-// ===== SESSION ALERTS =====
-@if(session('success'))
-Swal.fire({
-    icon: 'success',
-    title: 'Berhasil!',
-    text: '{{ session('success') }}',
-    confirmButtonColor: '#696cff',
-    timer: 3000,
-    timerProgressBar: true
-});
-@endif
-
-@if(session('error'))
-Swal.fire({
-    icon: 'error',
-    title: 'Gagal!',
-    text: '{{ session('error') }}',
-    confirmButtonColor: '#696cff'
-});
-@endif
 </script>
-@endsection
+@endpush

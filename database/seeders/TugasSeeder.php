@@ -4,49 +4,82 @@ namespace Database\Seeders;
 
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\DB;
-use Faker\Factory as Faker;
-use Carbon\Carbon;
 
 class TugasSeeder extends Seeder
 {
     public function run(): void
     {
-        $faker = Faker::create('id_ID');
+        $now = now();
+        $totalInserted = 0;
 
-        // Ambil ID projek dan pegawai
-        $projekIds = DB::table('projek')->pluck('id_projek')->toArray();
-        $pegawaiIds = DB::table('users')->where('role', 'pegawai')->pluck('id_user')->toArray();
+        $projekList = DB::table('projek')->pluck('id_projek');
 
-        // Pastikan data ada sebelum di-seed
-        if (empty($projekIds) || empty($pegawaiIds)) {
-            $this->command->warn('⚠️ Tidak ada data projek atau pegawai. Seeder dilewati.');
+        if ($projekList->isEmpty()) {
+            $this->command->error('Tidak ada projek ditemukan.');
             return;
         }
 
-        $jumlahTugas = rand(15, 18);
+        foreach ($projekList as $idProjek) {
 
-        for ($i = 1; $i <= $jumlahTugas; $i++) {
-            $level = $faker->randomElement(['mudah', 'medium', 'susah']);
-            $weight = match ($level) {
-                'mudah'  => 1,
-                'medium' => 2,
-                'susah'  => 3,
-            };
+            $timMembers = DB::table('projek_tim')
+                ->where('id_projek', $idProjek)
+                ->pluck('id_tim')
+                ->toArray();
 
-            DB::table('tugas')->insert([
-                'id_projek'         => $faker->randomElement($projekIds),
-                'judul_tugas'       => ucfirst($faker->sentence(3)),
-                'deskripsi_tugas'   => $faker->paragraph(2),
-                'level'             => $level,
-                'weight'            => $weight,
-                'penanggung_jawab'  => $faker->randomElement($pegawaiIds),
-                'status'            => $faker->randomElement(['draft', 'publis', 'progres', 'done']),
-                'tenggat_waktu'     => Carbon::now()->addDays(rand(7, 30))->format('Y-m-d'),
-                'dibuat_pada'       => now(),
-                'diubah_pada'       => now(),
-            ]);
+            if (empty($timMembers)) {
+                continue;
+            }
+
+            $jumlahTask = rand(5, 7);
+
+            for ($i = 1; $i <= $jumlahTask; $i++) {
+
+                $idTim = $timMembers[array_rand($timMembers)];
+
+                $levelList = ['mudah', 'medium', 'susah'];
+                $level = $levelList[array_rand($levelList)];
+
+                $weightMap = [
+                    'mudah'  => 1,
+                    'medium' => 2,
+                    'susah'  => 3,
+                ];
+
+                // RANDOM STATUS PROGRESS
+                $statusProgressList = ['draft', 'progres', 'selesai'];
+                $statusProgress = $statusProgressList[array_rand($statusProgressList)];
+
+                // LOGIKA STATUS AKHIR
+                $statusAkhir = null;
+
+                if ($statusProgress === 'progres') {
+                    $statusAkhir = 'review';
+                }
+
+                if ($statusProgress === 'selesai') {
+                    $statusAkhirList = ['review', 'revisi', 'approved'];
+                    $statusAkhir = $statusAkhirList[array_rand($statusAkhirList)];
+                }
+
+                DB::table('tugas')->insert([
+                    'id_projek'       => $idProjek,
+                    'id_tim'          => $idTim,
+                    'judul_tugas'     => "Task {$i} Projek {$idProjek}",
+                    'deskripsi_tugas' => "Deskripsi pekerjaan untuk task {$i} pada projek {$idProjek}",
+                    'level'           => $level,
+                    'weight'          => $weightMap[$level],
+                    'status_progress' => $statusProgress,
+                    'status_akhir'    => $statusAkhir,
+                    'tenggat_waktu'   => now()->addDays(rand(5, 30)),
+                    'dibuat_pada'     => $now,
+                    'diubah_pada'     => $now,
+                ]);
+
+                $totalInserted++;
+            }
         }
 
-        $this->command->info("✅ Seeder tugas berhasil menambahkan {$jumlahTugas} data tugas.");
+        $this->command->info("Seeder tugas selesai.");
+        $this->command->info("Total task dibuat: {$totalInserted}");
     }
 }

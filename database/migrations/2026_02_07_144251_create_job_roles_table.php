@@ -18,7 +18,7 @@ return new class extends Migration
             $table->boolean('status')->default(true); // Aktif / nonaktif
 
             $table->timestamp('dibuat_pada')->useCurrent();
-            $table->timestamp('diubah_pada')->useCurrent()->useCurrentOnUpdate();
+            $table->timestamp('diperbarui_pada')->useCurrent()->useCurrentOnUpdate();
         });
     }
 

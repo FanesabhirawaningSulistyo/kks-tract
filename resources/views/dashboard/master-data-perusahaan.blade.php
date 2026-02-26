@@ -1,1582 +1,753 @@
 @extends('layouts.master')
 @section('title', 'Master Data Perusahaan')
-
+@push('styles')
+<link rel="stylesheet" href="{{ asset('assets/css/master-data.css') }}">
+@endpush
 @section('content')
-<div class="row">
-    <div class="col-12">
-        <!-- Header Section -->
-        <div class="d-flex justify-content-between align-items-center mb-4">
-            <div>
-                <h4 class="fw-semibold mb-1">Master Data Perusahaan</h4>
-                <p class="text-muted mb-0 small">Kelola data perusahaan mitra</p>
+
+<div class="page-header d-flex justify-content-between align-items-start flex-wrap gap-3">
+    <div>
+        <h4>Master Data Perusahaan</h4>
+        <p>Kelola data perusahaan mitra</p>
+    </div>
+    <button class="btn-main" data-bs-toggle="modal" data-bs-target="#addPerusahaanModal">
+        <i class='bx bx-plus'></i> Tambah Perusahaan
+    </button>
+</div>
+
+@if(session('success') || session('error'))
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    @if(session('success'))
+    Swal.fire({ icon:'success', title:'Berhasil', text:'{{ session('success') }}', confirmButtonColor:'#5145cd', timer:3000, timerProgressBar:true, showConfirmButton:false });
+    @endif
+    @if(session('error'))
+    Swal.fire({ icon:'error', title:'Gagal', text:'{{ session('error') }}', confirmButtonColor:'#5145cd' });
+    @endif
+});
+</script>
+@endif
+
+<div class="data-card">
+    <div class="card-top">
+        <div class="toolbar">
+            <div class="toolbar-left">
+                <span class="label-sm">Tampilkan</span>
+                <select id="perPageSelect" class="ctrl" style="width:70px;">
+                    <option value="10">10</option><option value="25">25</option>
+                    <option value="50">50</option><option value="100">100</option>
+                </select>
+                <span class="label-sm">entri</span>
             </div>
-            <button type="button" class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#addPerusahaanModal">
-                <i class='bx bx-plus'></i> Tambah Perusahaan
-            </button>
+            <div class="toolbar-right">
+                <div class="search-wrap">
+                    <i class='bx bx-search ico'></i>
+                    <input type="text" id="searchInput" class="ctrl" placeholder="Cari perusahaan..." autocomplete="off">
+                    <button type="button" id="clearSearch" class="search-clear"><i class='bx bx-x'></i></button>
+                </div>
+                <button type="button" class="btn-ghost" data-bs-toggle="modal" data-bs-target="#columnSettingsModal">
+                    <i class='bx bx-columns'></i>
+                </button>
+            </div>
         </div>
-        
-        <!-- Table Card -->
-        <div class="card border-0 shadow-sm">
-            <div class="card-header bg-white border-0 py-3">
-                <form method="GET" action="{{ route('master-data-perusahaan.index') }}" id="filterForm">
-                    <div class="row g-3">
-                        <div class="col-12">
-                            <div class="d-flex flex-wrap align-items-center justify-content-between gap-2">
-                                <!-- Left: Pagination -->
-                                <div class="d-flex align-items-center">
-                                    <label class="me-2 text-nowrap small">Tampilkan:</label>
-                                    <select name="per_page" id="perPageSelect" class="form-select form-select-sm" style="width: 80px;">
-                                        <option value="10" {{ request('per_page') == 10 ? 'selected' : '' }}>10</option>
-                                        <option value="25" {{ request('per_page') == 25 ? 'selected' : '' }}>25</option>
-                                        <option value="50" {{ request('per_page') == 50 ? 'selected' : '' }}>50</option>
-                                        <option value="100" {{ request('per_page') == 100 ? 'selected' : '' }}>100</option>
-                                    </select>
-                                </div>
-                                
-                                <!-- Right: Search + Column settings -->
-                                <div class="d-flex align-items-center gap-2">
-                                    <div class="search-box">
-                                        <i class='bx bx-search'></i>
-                                        <input type="text" name="search" id="searchInput" 
-                                               placeholder="Cari perusahaan..." 
-                                               value="{{ request('search') }}" 
-                                               autocomplete="off">
-                                        <button type="button" id="clearSearch" class="btn-clear-search" style="display: none;">
-                                            <i class='bx bx-x'></i>
-                                        </button>
-                                    </div>
-                                    
-                                    <button type="button" class="btn btn-sm btn-light" 
-                                            data-bs-toggle="modal" data-bs-target="#columnSettingsModal">
-                                        <i class='bx bx-cog'></i>
-                                    </button>
-                                </div>
+    </div>
+
+    <div style="overflow-x:auto;">
+        <table class="data-table">
+            <thead>
+                <tr>
+                    <th class="column-no" style="width:52px;text-align:center;">No</th>
+                    <th class="column-nama sortable" data-column="nama_perusahaan" style="min-width:260px;">Perusahaan & Perwakilan <span class="sort-icon"></span></th>
+                    <th class="column-email" style="min-width:210px;">Email</th>
+                    <th class="column-telepon" style="min-width:160px;">Telepon</th>
+                    <th class="column-alamat" style="min-width:190px;">Alamat</th>
+                    <th class="column-jumlah_projek" style="min-width:120px;text-align:center;">Projek</th>
+                    <th class="column-dibuat sortable" data-column="dibuat_pada" style="min-width:130px;">Dibuat <span class="sort-icon"></span></th>
+                    <th class="column-diubah sortable" data-column="diperbarui_pada" style="min-width:130px;">Diubah <span class="sort-icon"></span></th>
+                    <th class="column-actions" style="width:110px;text-align:right;">Aksi</th>
+                </tr>
+            </thead>
+            <tbody id="perusahaanTableBody">
+                @forelse($perusahaans as $index => $item)
+                @php
+                    $namaPerusahaan    = $item->nama_perusahaan    ?? ($item->userPerusahaan?->nama ?? '-');
+                    $emailPerusahaan   = $item->email_perusahaan   ?? ($item->userPerusahaan?->email ?? '-');
+                    $teleponPerusahaan = $item->telepon_perusahaan ?? ($item->userPerusahaan?->no_hp ?? null);
+                    $jumlahProjek      = $item->jumlah_projek ?? 0;
+                    $logoRaw           = $item->getRawOriginal('logo_perusahaan') ?? $item->logo_perusahaan;
+                    $itemData = [
+                        'id_perusahaan'      => $item->id_perusahaan,
+                        'id_user_perusahaan' => $item->id_user_perusahaan,
+                        'nama_perusahaan'    => $namaPerusahaan,
+                        'email_perusahaan'   => $emailPerusahaan,
+                        'telepon_perusahaan' => $teleponPerusahaan,
+                        'nama_perwakilan'    => $item->nama_perwakilan,
+                        'email_perwakilan'   => $item->email_perwakilan,
+                        'telepon_perwakilan' => $item->telepon_perwakilan,
+                        'alamat_perusahaan'  => $item->alamat_perusahaan,
+                        'logo_perusahaan'    => $logoRaw,
+                        'dibuat_pada'        => $item->dibuat_pada,
+                        'diperbarui_pada'    => $item->diperbarui_pada,
+                        'jumlah_projek'      => $jumlahProjek,
+                        'status_akun'        => $item->userPerusahaan?->status ? 'aktif' : ($item->userPerusahaan ? 'nonaktif' : null),
+                    ];
+                @endphp
+                <tr class="perusahaan-row"
+                    data-nama_perusahaan="{{ strtolower($namaPerusahaan) }}"
+                    data-email_perusahaan="{{ strtolower($emailPerusahaan) }}"
+                    data-nama_perwakilan="{{ strtolower($item->nama_perwakilan ?? '') }}"
+                    data-dibuat_pada="{{ $item->dibuat_pada }}"
+                    data-diperbarui_pada="{{ $item->diperbarui_pada }}"
+                    data-item='@json($itemData)'>
+
+                    <td class="column-no" style="text-align:center;"><span class="row-no">{{ $perusahaans->firstItem() + $index }}</span></td>
+
+                    <td class="column-nama">
+                        <div style="display:flex;align-items:center;gap:10px;">
+                            @if($logoRaw)
+                                <img src="{{ asset('storage/' . $logoRaw) }}" alt="{{ $namaPerusahaan }}" class="company-logo"
+                                     onerror="this.style.display='none';this.nextElementSibling.style.display='flex';">
+                                <div class="company-av" style="display:none;"><i class='bx bx-buildings'></i></div>
+                            @else
+                                <div class="company-av"><i class='bx bx-buildings'></i></div>
+                            @endif
+                            <div>
+                                <div class="company-name">{{ $namaPerusahaan }}</div>
+                                <div class="company-sub"><i class='bx bxs-user' style="font-size:11px;"></i> {{ $item->nama_perwakilan ?? '-' }}</div>
+                                @if($item->userPerusahaan)
+                                    @if($item->userPerusahaan->status)
+                                        <span class="acc-badge acc-active"><i class='bx bx-check-circle'></i> Aktif</span>
+                                    @else
+                                        <span class="acc-badge acc-inactive"><i class='bx bx-x-circle'></i> Non-Aktif</span>
+                                    @endif
+                                @endif
                             </div>
                         </div>
-                    </div>
-                </form>
-            </div>
-            
-            <div class="table-responsive">
-                <table class="table table-hover align-middle mb-0">
-                    <thead>
-                        <tr>
-                            <th class="column-no" style="width: 60px;">NO</th>
-                            <th class="column-nama sortable" data-column="nama_perusahaan" style="min-width: 280px;">
-                                <div class="d-flex align-items-center justify-content-between">
-                                    <span>PERUSAHAAN & PERWAKILAN</span>
-                                    <i class='bx bx-sort sort-icon'></i>
-                                </div>
-                            </th>
-                            <th class="column-email" style="min-width: 220px;">EMAIL</th>
-                            <th class="column-telepon" style="min-width: 150px;">TELEPON</th>
-                            <th class="column-alamat" style="min-width: 200px;">ALAMAT</th>
-                            <th class="column-dibuat sortable" data-column="dibuat_pada" style="min-width: 140px;">
-                                <div class="d-flex align-items-center justify-content-between">
-                                    <span>DIBUAT</span>
-                                    <i class='bx bx-sort sort-icon'></i>
-                                </div>
-                            </th>
-                            <th class="column-diubah sortable" data-column="diperbarui_pada" style="min-width: 140px;">
-                                <div class="d-flex align-items-center justify-content-between">
-                                    <span>DIUBAH</span>
-                                    <i class='bx bx-sort sort-icon'></i>
-                                </div>
-                            </th>
-                            <th class="column-actions text-center" style="width: 140px;">AKSI</th>
-                        </tr>
-                    </thead>
-                    <tbody id="perusahaanTableBody">
-                        @forelse($perusahaans as $index => $perusahaan)
-                        <tr class="perusahaan-row" 
-                            data-original-index="{{ $index + 1 }}"
-                            data-nama_perusahaan="{{ strtolower($perusahaan->nama_perusahaan ?? '') }}"
-                            data-dibuat_pada="{{ $perusahaan->dibuat_pada ? $perusahaan->dibuat_pada->format('Y-m-d H:i:s') : '' }}"
-                            data-diperbarui_pada="{{ $perusahaan->diperbarui_pada ? $perusahaan->diperbarui_pada->format('Y-m-d H:i:s') : '' }}">
-                            <td class="column-no">
-                                <span class="row-number">{{ $perusahaans->firstItem() + $index }}</span>
-                            </td>
-                            
-                            <!-- KOLOM PERUSAHAAN & PERWAKILAN -->
-                            <td class="column-nama">
-                                <div class="d-flex align-items-start">
-                                    @if($perusahaan->logo_perusahaan)
-                                    <img src="{{ asset('storage/' . $perusahaan->logo_perusahaan) }}" 
-                                         alt="{{ $perusahaan->nama_perusahaan }}" 
-                                         class="company-logo" 
-                                         onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
-                                    <div class="company-avatar" style="display: none;">
-                                        <i class='bx bx-buildings'></i>
-                                    </div>
-                                    @else
-                                    <div class="company-avatar">
-                                        <i class='bx bx-buildings'></i>
-                                    </div>
-                                    @endif
-                                    
-                                    <div class="ms-3">
-                                        <!-- Nama Perusahaan (dari users.nama) -->
-                                        <div class="company-name mb-1">
-                                           {{ $perusahaan->nama_perusahaan ?? '-' }}
-                                        </div>
-                                        
-                                        <!-- Nama Perwakilan (dari perusahaan.nama_perwakilan) -->
-                                        <div class="representative-name">
-                                            <i class='bx bxs-user me-1'></i>{{ $perusahaan->nama_perwakilan ?? '-' }}
-                                        </div>
-                                    </div>
-                                </div>
-                            </td>
-                            
-                            <!-- KOLOM EMAIL -->
-                            <td class="column-email">
-                                <div class="email-container">
-                                    <!-- Email Perusahaan (dari users.email) -->
-                                    <div class="email-item">
-                                        <i class='bx bxs-envelope email-icon-company'></i>
-                                        <span class="email-text">{{ $perusahaan->email_perusahaan ?? '-' }}</span>
-                                    </div>
-                                    
-                                    <!-- Email Perwakilan (dari perusahaan.email_perwakilan) -->
-                                    <div class="email-item-secondary">
-                                        <i class='bx bxs-user-voice email-icon-person'></i>
-                                        <span class="email-text-secondary">{{ $perusahaan->email_perwakilan ?? '-' }}</span>
-                                    </div>
-                                </div>
-                            </td>
-                            
-                            <!-- KOLOM TELEPON -->
-                            <td class="column-telepon">
-                                <div class="phone-container">
-                                    <!-- Telepon Perusahaan (dari users.no_hp) -->
-                                    @if($perusahaan->telepon_perusahaan)
-                                    <div class="phone-item">
-                                        <i class='bx bxs-phone phone-icon-company'></i>
-                                        <span class="phone-text">{{ $perusahaan->telepon_perusahaan }}</span>
-                                    </div>
-                                    @else
-                                    <div class="phone-item text-muted">
-                                        <i class='bx bx-phone me-1'></i>
-                                        <span>-</span>
-                                    </div>
-                                    @endif
-                                    
-                                    <!-- Telepon Perwakilan (dari perusahaan.telepon_perwakilan) -->
-                                    @if($perusahaan->telepon_perwakilan)
-                                    <div class="phone-item-secondary">
-                                        <i class='bx bxs-mobile phone-icon-person'></i>
-                                        <span class="phone-text-secondary">{{ $perusahaan->telepon_perwakilan }}</span>
-                                    </div>
-                                    @else
-                                    <div class="phone-item-secondary text-muted">
-                                        <i class='bx bx-mobile me-1'></i>
-                                        <span>-</span>
-                                    </div>
-                                    @endif
-                                </div>
-                            </td>
-                            
-                            <!-- KOLOM ALAMAT -->
-                            <td class="column-alamat">
-                                <div class="address-container">
-                                    <span class="address-text">{{ $perusahaan->alamat_perusahaan ?? '-' }}</span>
-                                </div>
-                            </td>
-                            
-                            <!-- KOLOM DIBUAT -->
-                            <td class="column-dibuat">
-                                <span class="date-text">{{ $perusahaan->dibuat_pada ? $perusahaan->dibuat_pada->format('d/m/Y H:i') : '-' }}</span>
-                            </td>
-                            
-                            <!-- KOLOM DIUBAH -->
-                            <td class="column-diubah">
-                                <span class="date-text">{{ $perusahaan->diperbarui_pada ? $perusahaan->diperbarui_pada->format('d/m/Y H:i') : '-' }}</span>
-                            </td>
-                            
-                            <!-- KOLOM AKSI -->
-<td class="column-actions text-center">
-    <div class="action-buttons">
-        <button type="button" 
-                class="action-btn view-btn" 
-                onclick="viewPerusahaan({{ $perusahaan->id_perusahaan }})"
-                data-id="{{ $perusahaan->id_perusahaan }}"
-                data-nama-perusahaan="{{ $perusahaan->nama_perusahaan }}"
-                data-email-perusahaan="{{ $perusahaan->email_perusahaan }}"
-                data-telepon-perusahaan="{{ $perusahaan->telepon_perusahaan }}"
-                data-nama-perwakilan="{{ $perusahaan->nama_perwakilan }}"
-                data-email-perwakilan="{{ $perusahaan->email_perwakilan }}"
-                data-telepon-perwakilan="{{ $perusahaan->telepon_perwakilan }}"
-                data-alamat="{{ $perusahaan->alamat_perusahaan }}"
-                data-logo="{{ $perusahaan->logo_perusahaan }}"
-                data-dibuat="{{ $perusahaan->dibuat_pada ? $perusahaan->dibuat_pada->format('d/m/Y H:i') : '-' }}"
-                data-diubah="{{ $perusahaan->diperbarui_pada ? $perusahaan->diperbarui_pada->format('d/m/Y H:i') : '-' }}"
-                title="Lihat Detail">
-            <i class='bx bx-show'></i>
-        </button>
-        <button type="button" 
-                class="action-btn edit-btn" 
-                onclick="editPerusahaan({{ $perusahaan->id_perusahaan }})"
-                data-id="{{ $perusahaan->id_perusahaan }}"
-                data-nama-perusahaan="{{ $perusahaan->nama_perusahaan }}"
-                data-email-perusahaan="{{ $perusahaan->email_perusahaan }}"
-                data-telepon-perusahaan="{{ $perusahaan->telepon_perusahaan }}"
-                data-nama-perwakilan="{{ $perusahaan->nama_perwakilan }}"
-                data-email-perwakilan="{{ $perusahaan->email_perwakilan }}"
-                data-telepon-perwakilan="{{ $perusahaan->telepon_perwakilan }}"
-                data-alamat="{{ $perusahaan->alamat_perusahaan }}"
-                data-logo="{{ $perusahaan->logo_perusahaan }}"
-                title="Edit">
-            <i class='bx bx-edit'></i>
-        </button>
-        <button type="button" 
-                class="action-btn delete-btn" 
-                onclick="deletePerusahaan({{ $perusahaan->id_perusahaan }}, '{{ $perusahaan->nama_perusahaan }}')"
-                title="Hapus">
-            <i class='bx bx-trash'></i>
-        </button>
+                    </td>
+
+                    <td class="column-email">
+    <div class="dual-cell">
+        <div class="dual-main" title="Email Perusahaan (akun login)">
+            <i class='bx bxs-buildings'></i>
+            <span>{{ $emailPerusahaan }}</span>
+        </div>
+        <div class="dual-sec" title="Email Perwakilan (PIC)">
+            <i class='bx bxs-user-circle'></i>
+            <span>{{ $item->email_perwakilan ?? '-' }}</span>
+        </div>
     </div>
 </td>
-                        </tr>
-                        @empty
-                        <tr id="emptyRow">
-                            <td colspan="8" class="text-center py-5">
-                                <i class='bx bx-buildings empty-icon'></i>
-                                <p class="empty-text">Belum ada data perusahaan</p>
-                            </td>
-                        </tr>
-                        @endforelse
-                    </tbody>
-                </table>
-            </div>
-            
-            <div class="card-footer bg-white border-0 py-3">
-                <div class="row align-items-center">
-                    <div class="col-md-6">
-                        <p class="mb-0 text-muted small">
-                            Menampilkan {{ $perusahaans->firstItem() ?? 0 }} - {{ $perusahaans->lastItem() ?? 0 }} dari {{ $perusahaans->total() }} data
-                        </p>
-                    </div>
-                    <div class="col-md-6">
-                        <nav>
-                            <ul class="pagination pagination-sm justify-content-md-end mb-0">
-                                {{ $perusahaans->appends(request()->query())->links('pagination::bootstrap-4') }}
-                            </ul>
-                        </nav>
-                    </div>
-                </div>
-            </div>
+
+                  <td class="column-telepon">
+    <div class="dual-cell">
+        <div class="dual-main {{ !$teleponPerusahaan ? 'dual-sec' : '' }}" title="Telepon Perusahaan">
+            <i class='bx {{ $teleponPerusahaan ? "bxs-phone-call" : "bx-phone-call" }}'></i>
+            <span>{{ $teleponPerusahaan ?? '-' }}</span>
         </div>
+        <div class="dual-sec" title="Telepon Perwakilan">
+            <i class='bx {{ $item->telepon_perwakilan ? "bxs-mobile-vibration" : "bx-mobile" }}'></i>
+            <span>{{ $item->telepon_perwakilan ?? '-' }}</span>
+        </div>
+    </div>
+</td>
+
+                    <td class="column-alamat">
+                        <span class="addr-text">{{ $item->alamat_perusahaan ?? '-' }}</span>
+                    </td>
+
+                    <td class="column-jumlah_projek" style="text-align:center;">
+                        @if($jumlahProjek > 0)
+                            <span class="proj-pill"><i class='bx bx-folder'></i> {{ $jumlahProjek }} projek</span>
+                        @else
+                            <span class="proj-pill empty"><i class='bx bx-folder'></i> 0 projek</span>
+                        @endif
+                    </td>
+
+                    <td class="column-dibuat">
+                        <span class="date-val">{{ $item->dibuat_pada ? \Carbon\Carbon::parse($item->dibuat_pada)->format('d/m/Y H:i') : '—' }}</span>
+                    </td>
+
+                    <td class="column-diubah">
+                        <span class="date-val">{{ $item->diperbarui_pada ? \Carbon\Carbon::parse($item->diperbarui_pada)->format('d/m/Y H:i') : '—' }}</span>
+                    </td>
+
+                    <td class="column-actions" style="text-align:right;">
+                        <div class="act-group">
+                            <button type="button" class="act-btn view" onclick="viewPerusahaan(this)"
+                                    data-item='@json($itemData)' title="Lihat Detail"><i class='bx bx-show'></i></button>
+                            <button type="button" class="act-btn edit" onclick="editPerusahaan(this)"
+                                    data-item='@json($itemData)' title="Edit"><i class='bx bx-edit'></i></button>
+                            <button type="button" class="act-btn delete"
+                                    onclick="deletePerusahaan({{ $item->id_perusahaan }}, '{{ addslashes($namaPerusahaan) }}')"
+                                    title="Hapus"><i class='bx bx-trash'></i></button>
+                        </div>
+                    </td>
+                </tr>
+                @empty
+                <tr><td colspan="9">
+                    <div class="empty-state">
+                        <i class='bx bx-buildings'></i>
+                        <p>Belum ada data perusahaan.<br>Tambahkan perusahaan pertama Anda.</p>
+                    </div>
+                </td></tr>
+                @endforelse
+            </tbody>
+        </table>
+    </div>
+
+    <div class="table-footer">
+        <span class="footer-info">Menampilkan <strong id="showingStart">{{ $perusahaans->firstItem() ?? 0 }}</strong>–<strong id="showingEnd">{{ $perusahaans->lastItem() ?? 0 }}</strong> dari <strong id="totalEntries">{{ $perusahaans->total() }}</strong> data</span>
+        <nav><ul class="page-list" id="paginationControls"></ul></nav>
     </div>
 </div>
 
-<!-- View Perusahaan Modal -->
-<div class="modal fade" id="viewPerusahaanModal" tabindex="-1">
+{{-- ══════════════════════════════════════
+     MODAL VIEW
+══════════════════════════════════════ --}}
+<div class="modal fade" id="viewPerusahaanModal" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered modal-lg">
         <div class="modal-content">
-            <div class="modal-header border-0 pb-0">
-                <h5 class="modal-title fw-semibold">Detail Perusahaan</h5>
+            <div class="modal-hdr">
+                <div class="modal-hdr-title">
+                    <div class="hdr-icon"><i class='bx bx-buildings'></i></div>
+                    Detail Perusahaan
+                </div>
                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
-            <div class="modal-body pt-3">
-                <div class="row g-4">
-                    <!-- Logo & Nama Perusahaan -->
-                    <div class="col-12">
-                        <div class="d-flex align-items-center">
-                            <div id="view_logo_container" class="me-3"></div>
-                            <div>
-                                <h5 class="mb-1" id="view_nama_perusahaan"></h5>
-                                <p class="text-muted mb-0 small"><i class='bx bxs-user me-1'></i><span id="view_nama_perwakilan"></span></p>
-                            </div>
-                        </div>
-                    </div>
-                    
-                    <div class="col-12"><hr class="my-2"></div>
-                    
-                    <!-- Informasi Perusahaan -->
-                    <div class="col-12">
-                        <h6 class="fw-semibold mb-3 text-primary">
-                            <i class='bx bx-buildings me-2'></i>Informasi Perusahaan
-                        </h6>
-                    </div>
-                    
+            <div class="modal-bdy">
+                <div class="view-logo-container" id="view_logo_container"></div>
+
+                <!-- Akun Login -->
+                <div class="sec-row">Informasi Perusahaan <small style="font-weight:400;text-transform:none;letter-spacing:0;">(Akun Login)</small></div>
+                <div class="row g-3">
                     <div class="col-md-6">
-                        <label class="small text-muted mb-1">Email Perusahaan</label>
-                        <p class="mb-0" id="view_email_perusahaan"></p>
+                        <div class="drow"><span class="dlabel">Nama Perusahaan</span><span class="dval" id="view_nama_perusahaan"></span></div>
                     </div>
-                    
                     <div class="col-md-6">
-                        <label class="small text-muted mb-1">Telepon Perusahaan</label>
-                        <p class="mb-0" id="view_telepon_perusahaan"></p>
+                        <div class="drow"><span class="dlabel">Email Login</span><span class="dval" style="color:var(--p1);font-weight:500;" id="view_email_perusahaan"></span></div>
                     </div>
-                    
-                    <div class="col-12">
-                        <label class="small text-muted mb-1">Alamat Perusahaan</label>
-                        <p class="mb-0" id="view_alamat_perusahaan"></p>
-                    </div>
-                    
-                    <div class="col-12"><hr class="my-2"></div>
-                    
-                    <!-- Informasi Perwakilan -->
-                    <div class="col-12">
-                        <h6 class="fw-semibold mb-3 text-success">
-                            <i class='bx bx-user me-2'></i>Informasi Perwakilan (PIC)
-                        </h6>
-                    </div>
-                    
                     <div class="col-md-6">
-                        <label class="small text-muted mb-1">Nama Perwakilan</label>
-                        <p class="mb-0" id="view_nama_perwakilan_full"></p>
+                        <div class="drow"><span class="dlabel">Telepon</span><span class="dval" id="view_telepon_perusahaan"></span></div>
                     </div>
-                    
                     <div class="col-md-6">
-                        <label class="small text-muted mb-1">Email Perwakilan</label>
-                        <p class="mb-0" id="view_email_perwakilan"></p>
+                        <div class="drow"><span class="dlabel">Alamat</span><span class="dval" id="view_alamat_perusahaan"></span></div>
                     </div>
-                    
+                </div>
+
+                <!-- Perwakilan -->
+                <div class="sec-row green">Informasi Perwakilan (PIC)</div>
+                <div class="row g-3">
                     <div class="col-md-6">
-                        <label class="small text-muted mb-1">Telepon Perwakilan</label>
-                        <p class="mb-0" id="view_telepon_perwakilan"></p>
+                        <div class="drow"><span class="dlabel">Nama</span><span class="dval" id="view_nama_perwakilan"></span></div>
                     </div>
-                    
-                    <div class="col-12"><hr class="my-2"></div>
-                    
-                    <!-- Timestamp -->
                     <div class="col-md-6">
-                        <label class="small text-muted mb-1">Dibuat Pada</label>
-                        <p class="mb-0" id="view_dibuat_pada"></p>
+                        <div class="drow"><span class="dlabel">Email</span><span class="dval" id="view_email_perwakilan"></span></div>
                     </div>
-                    
                     <div class="col-md-6">
-                        <label class="small text-muted mb-1">Terakhir Diubah</label>
-                        <p class="mb-0" id="view_diperbarui_pada"></p>
+                        <div class="drow"><span class="dlabel">Telepon</span><span class="dval" id="view_telepon_perwakilan"></span></div>
+                    </div>
+                </div>
+
+                <!-- Statistik & Waktu -->
+                <div class="sec-row teal">Statistik & Waktu</div>
+                <div class="row g-3">
+                    <div class="col-md-4">
+                        <div class="drow"><span class="dlabel">Jumlah Projek</span><span class="dval" id="view_jumlah_projek"></span></div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="drow"><span class="dlabel">Dibuat</span><span class="dval" style="color:var(--ink-500);font-weight:400;" id="view_dibuat_pada"></span></div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="drow"><span class="dlabel">Diperbarui</span><span class="dval" style="color:var(--ink-500);font-weight:400;" id="view_diperbarui_pada"></span></div>
                     </div>
                 </div>
             </div>
-            <div class="modal-footer border-0 pt-0">
-                <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Tutup</button>
+            <div class="modal-ftr">
+                <button type="button" class="btn-outline" data-bs-dismiss="modal">Tutup</button>
+                <button type="button" class="btn-main" id="view_edit_btn"><i class='bx bx-edit'></i> Edit</button>
             </div>
         </div>
     </div>
 </div>
 
-<!-- Add Perusahaan Modal -->
-<div class="modal fade" id="addPerusahaanModal" tabindex="-1">
+{{-- ══════════════════════════════════════
+     MODAL ADD
+══════════════════════════════════════ --}}
+<div class="modal fade" id="addPerusahaanModal" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered modal-lg">
         <div class="modal-content">
-            <div class="modal-header border-0 pb-0">
-                <h5 class="modal-title fw-semibold">Tambah Perusahaan Baru</h5>
+            <div class="modal-hdr">
+                <div class="modal-hdr-title">
+                    <div class="hdr-icon"><i class='bx bx-plus'></i></div>
+                    Tambah Perusahaan Baru
+                </div>
                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
             <form action="{{ route('master-data-perusahaan.store') }}" method="POST" enctype="multipart/form-data" id="addPerusahaanForm">
                 @csrf
-                <div class="modal-body pt-3">
+                <div class="modal-bdy">
+                    <div style="background:var(--p-light);border:1px solid var(--p-soft);border-radius:var(--radius-sm);padding:10px 14px;font-size:12px;color:var(--p2);margin-bottom:16px;">
+                        <i class='bx bx-info-circle'></i>
+                        Data perusahaan (nama, email, telepon) akan menjadi <strong>akun login</strong> perusahaan secara otomatis.
+                    </div>
+
+                    <div class="dsec" style="margin-bottom:14px;"><i class='bx bx-buildings me-1'></i>Data Perusahaan <span style="font-weight:400;text-transform:none;letter-spacing:0;">(Akun Login)</span></div>
                     <div class="row g-3">
-                        <!-- Data Perusahaan (masuk ke tabel users) -->
+                        <div class="col-md-6">
+                            <label class="flabel">Nama Perusahaan <span style="color:#DC2626;">*</span></label>
+                            <input type="text" name="nama_perusahaan" class="fctrl" required maxlength="100" placeholder="PT ABC Indonesia">
+                        </div>
+                        <div class="col-md-6">
+                            <label class="flabel">Email Perusahaan <span style="color:#DC2626;">*</span> <span class="fhint" style="margin:0;display:inline;">(untuk login)</span></label>
+                            <input type="email" name="email_perusahaan" class="fctrl" required maxlength="100" placeholder="info@abc.co.id">
+                        </div>
+                        <div class="col-md-6">
+                            <label class="flabel">Telepon Perusahaan</label>
+                            <input type="text" name="telepon_perusahaan" class="fctrl" maxlength="20" placeholder="021-1234567">
+                        </div>
+                        <div class="col-md-6">
+                            <label class="flabel">Password <span style="color:#DC2626;">*</span> <span class="fhint" style="margin:0;display:inline;">(untuk login)</span></label>
+                            <div class="pw-wrap">
+                                <input type="password" name="password_perusahaan" id="add_password" class="fctrl" required minlength="8" placeholder="Min. 8 karakter">
+                                <button class="btn-pw" type="button" onclick="togglePw('add_password','add_pw_icon')"><i class='bx bx-hide' id="add_pw_icon"></i></button>
+                            </div>
+                        </div>
                         <div class="col-12">
-                            <h6 class="fw-semibold mb-3">
-                                <i class='bx bx-buildings me-2 text-primary'></i>Data Perusahaan
-                            </h6>
+                            <label class="flabel">Alamat Perusahaan <span style="color:#DC2626;">*</span></label>
+                            <textarea name="alamat_perusahaan" class="fctrl" rows="2" required placeholder="Jl. Sudirman No. 123, Jakarta"></textarea>
                         </div>
-                        
-                        <div class="col-md-6">
-                            <label class="form-label small">Nama Perusahaan *</label>
-                            <input type="text" name="nama_perusahaan" class="form-control" required maxlength="100" placeholder="PT ABC Indonesia">
-                        </div>
-                        
-                        <div class="col-md-6">
-                            <label class="form-label small">Email Perusahaan *</label>
-                            <input type="email" name="email_perusahaan" class="form-control" required maxlength="100" placeholder="info@abc.co.id">
-                        </div>
-                        
-                        <div class="col-md-6">
-                            <label class="form-label small">Telepon Perusahaan</label>
-                            <input type="text" name="telepon_perusahaan" class="form-control" maxlength="20" placeholder="021-1234567">
-                        </div>
-                        
-                        <div class="col-md-6">
-                            <label class="form-label small">Password *</label>
-                            <div class="input-group">
-                                <input type="password" name="password_perusahaan" id="add_password" class="form-control" required minlength="8">
-                                <button class="btn btn-outline-secondary" type="button" onclick="togglePassword('add_password', 'add_password_icon')">
-                                    <i class='bx bx-hide' id="add_password_icon"></i>
+                        <div class="col-12">
+                            <label class="flabel">Logo Perusahaan</label>
+                            <input type="file" name="logo_perusahaan" id="add_logo" class="fctrl" accept="image/jpeg,image/png,image/jpg"
+                                   onchange="previewLogo(event,'addLogoImg','addLogoPreview')">
+                            <div class="fhint">Format: JPG, JPEG, PNG — Maks. 2MB</div>
+                            <div class="photo-preview" id="addLogoPreview">
+                                <img id="addLogoImg" src="" alt="Preview">
+                                <button type="button" class="photo-clear" onclick="clearLogo('add_logo','addLogoImg','addLogoPreview')">
+                                    <i class='bx bx-x'></i> Hapus
                                 </button>
                             </div>
-                            <small class="text-muted">Minimal 8 karakter</small>
                         </div>
-                        
-                        <div class="col-12">
-                            <label class="form-label small">Alamat Perusahaan *</label>
-                            <textarea name="alamat_perusahaan" class="form-control" rows="2" required placeholder="Jl. Sudirman No. 123, Jakarta"></textarea>
-                        </div>
-                        
-                        <div class="col-12">
-                            <label class="form-label small">Logo Perusahaan</label>
-                            <div class="position-relative">
-                                <input type="file" name="logo_perusahaan" id="add_logo" class="form-control" accept="image/jpeg,image/png,image/jpg" onchange="previewAddLogo(event)">
-                                <button type="button" class="btn btn-sm btn-danger position-absolute" id="clearAddLogo" style="display: none; top: 4px; right: 4px;" onclick="clearAddLogoPreview()">
-                                    <i class='bx bx-x'></i>
-                                </button>
-                            </div>
-                            <small class="text-muted">Format: JPG, JPEG, PNG | Maksimal 2MB</small>
-                            <div id="addLogoPreview" class="mt-2" style="display: none;">
-                                <img id="addLogoImg" src="" alt="Preview" class="preview-image">
-                            </div>
-                        </div>
-                        
-                        <!-- Data Perwakilan (masuk ke tabel perusahaan) -->
-                        <div class="col-12 mt-4">
-                            <h6 class="fw-semibold mb-3">
-                                <i class='bx bx-user me-2 text-success'></i>Data Perwakilan (PIC)
-                            </h6>
-                        </div>
-                        
+                    </div>
+
+                    <hr class="divider">
+                    <div class="dsec" style="margin-bottom:14px;"><i class='bx bx-user me-1'></i>Data Perwakilan (PIC)</div>
+                    <div class="row g-3">
                         <div class="col-md-6">
-                            <label class="form-label small">Nama Perwakilan *</label>
-                            <input type="text" name="nama_perwakilan" class="form-control" required maxlength="100" placeholder="Ahmad Wijaya">
+                            <label class="flabel">Nama Perwakilan <span style="color:#DC2626;">*</span></label>
+                            <input type="text" name="nama_perwakilan" class="fctrl" required maxlength="100" placeholder="Ahmad Wijaya">
                         </div>
-                        
                         <div class="col-md-6">
-                            <label class="form-label small">Email Perwakilan *</label>
-                            <input type="email" name="email_perwakilan" class="form-control" required maxlength="100" placeholder="ahmad@abc.co.id">
+                            <label class="flabel">Email Perwakilan <span style="color:#DC2626;">*</span></label>
+                            <input type="email" name="email_perwakilan" class="fctrl" required maxlength="100" placeholder="ahmad@abc.co.id">
                         </div>
-                        
                         <div class="col-md-6">
-                            <label class="form-label small">Telepon Perwakilan</label>
-                            <input type="text" name="telepon_perwakilan" class="form-control" maxlength="20" placeholder="08123456789">
+                            <label class="flabel">Telepon Perwakilan</label>
+                            <input type="text" name="telepon_perwakilan" class="fctrl" maxlength="20" placeholder="08123456789">
                         </div>
                     </div>
                 </div>
-                <div class="modal-footer border-0 pt-0">
-                    <button type="button" class="btn btn-light btn-sm" data-bs-dismiss="modal">Batal</button>
-                    <button type="submit" class="btn btn-primary btn-sm">
-                        <i class='bx bx-save me-1'></i>Simpan
-                    </button>
+                <div class="modal-ftr">
+                    <button type="button" class="btn-outline" data-bs-dismiss="modal">Batal</button>
+                    <button type="submit" class="btn-main"><i class='bx bx-save'></i> Simpan</button>
                 </div>
             </form>
         </div>
     </div>
 </div>
 
-<!-- Edit Perusahaan Modal -->
-<div class="modal fade" id="editPerusahaanModal" tabindex="-1">
+{{-- ══════════════════════════════════════
+     MODAL EDIT
+══════════════════════════════════════ --}}
+<div class="modal fade" id="editPerusahaanModal" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered modal-lg">
         <div class="modal-content">
-            <div class="modal-header border-0 pb-0">
-                <h5 class="modal-title fw-semibold">Edit Perusahaan</h5>
+            <div class="modal-hdr">
+                <div class="modal-hdr-title">
+                    <div class="hdr-icon"><i class='bx bx-edit'></i></div>
+                    Edit Perusahaan
+                </div>
                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
             <form id="editPerusahaanForm" method="POST" enctype="multipart/form-data">
-                @csrf
-                @method('PUT')
-                <div class="modal-body pt-3">
+                @csrf @method('PUT')
+                <div class="modal-bdy">
+                    <div style="background:rgba(14,116,144,.07);border:1px solid rgba(14,116,144,.2);border-radius:var(--radius-sm);padding:10px 14px;font-size:12px;color:#0e7490;margin-bottom:16px;">
+                        <i class='bx bx-sync'></i>
+                        Perubahan nama, email, dan telepon perusahaan akan <strong>otomatis tersinkronisasi</strong> ke akun login perusahaan.
+                    </div>
+
+                    <div class="dsec" style="margin-bottom:14px;"><i class='bx bx-buildings me-1'></i>Data Perusahaan <span style="font-weight:400;text-transform:none;letter-spacing:0;">(Akun Login)</span></div>
                     <div class="row g-3">
-                        <!-- Data Perusahaan (di tabel users) -->
+                        <div class="col-md-6">
+                            <label class="flabel">Nama Perusahaan <span style="color:#DC2626;">*</span></label>
+                            <input type="text" name="nama_perusahaan" id="edit_nama_perusahaan" class="fctrl" required maxlength="100">
+                        </div>
+                        <div class="col-md-6">
+                            <label class="flabel">Email Perusahaan <span style="color:#DC2626;">*</span> <span class="fhint" style="margin:0;display:inline;">(akun login)</span></label>
+                            <input type="email" name="email_perusahaan" id="edit_email_perusahaan" class="fctrl" required maxlength="100">
+                        </div>
+                        <div class="col-md-6">
+                            <label class="flabel">Telepon Perusahaan</label>
+                            <input type="text" name="telepon_perusahaan" id="edit_telepon_perusahaan" class="fctrl" maxlength="20">
+                        </div>
+                        <div class="col-md-6">
+                            <label class="flabel">Password <span class="fhint" style="margin:0;display:inline;">(kosongkan jika tidak diubah)</span></label>
+                            <div class="pw-wrap">
+                                <input type="password" name="password_perusahaan" id="edit_password" class="fctrl" minlength="8" placeholder="Isi jika ingin mengubah">
+                                <button class="btn-pw" type="button" onclick="togglePw('edit_password','edit_pw_icon')"><i class='bx bx-hide' id="edit_pw_icon"></i></button>
+                            </div>
+                        </div>
                         <div class="col-12">
-                            <h6 class="fw-semibold mb-3">
-                                <i class='bx bx-buildings me-2 text-primary'></i>Data Perusahaan
-                            </h6>
+                            <label class="flabel">Alamat Perusahaan <span style="color:#DC2626;">*</span></label>
+                            <textarea name="alamat_perusahaan" id="edit_alamat_perusahaan" class="fctrl" rows="2" required></textarea>
                         </div>
-                        
-                        <div class="col-md-6">
-                            <label class="form-label small">Nama Perusahaan *</label>
-                            <input type="text" name="nama_perusahaan" id="edit_nama_perusahaan" class="form-control" required maxlength="100">
-                        </div>
-                        
-                        <div class="col-md-6">
-                            <label class="form-label small">Email Perusahaan *</label>
-                            <input type="email" name="email_perusahaan" id="edit_email_perusahaan" class="form-control" required maxlength="100">
-                        </div>
-                        
-                        <div class="col-md-6">
-                            <label class="form-label small">Telepon Perusahaan</label>
-                            <input type="text" name="telepon_perusahaan" id="edit_telepon_perusahaan" class="form-control" maxlength="20">
-                        </div>
-                        
-                        <div class="col-md-6">
-                            <label class="form-label small">Password (kosongkan jika tidak diubah)</label>
-                            <div class="input-group">
-                                <input type="password" name="password_perusahaan" id="edit_password" class="form-control" minlength="8">
-                                <button class="btn btn-outline-secondary" type="button" onclick="togglePassword('edit_password', 'edit_password_icon')">
-                                    <i class='bx bx-hide' id="edit_password_icon"></i>
+                        <div class="col-12">
+                            <label class="flabel">Logo Saat Ini</label>
+                            <div class="photo-current" id="currentLogoPreview"></div>
+                            <label class="flabel">Ganti Logo</label>
+                            <input type="file" name="logo_perusahaan" id="edit_logo" class="fctrl" accept="image/jpeg,image/png,image/jpg"
+                                   onchange="previewLogo(event,'editLogoImg','editLogoPreview')">
+                            <div class="fhint">Format: JPG, JPEG, PNG — Maks. 2MB</div>
+                            <div class="photo-preview" id="editLogoPreview">
+                                <img id="editLogoImg" src="" alt="Preview">
+                                <button type="button" class="photo-clear" onclick="clearLogo('edit_logo','editLogoImg','editLogoPreview')">
+                                    <i class='bx bx-x'></i> Hapus
                                 </button>
                             </div>
                         </div>
-                        
-                        <div class="col-12">
-                            <label class="form-label small">Alamat Perusahaan *</label>
-                            <textarea name="alamat_perusahaan" id="edit_alamat_perusahaan" class="form-control" rows="2" required></textarea>
-                        </div>
-                        
-                        <div class="col-12">
-                            <label class="form-label small">Logo Perusahaan Saat Ini</label>
-                            <div id="currentLogoPreview" class="mb-2"></div>
-                        </div>
-                        
-                        <div class="col-12">
-                            <label class="form-label small">Ganti Logo Perusahaan</label>
-                            <div class="position-relative">
-                                <input type="file" name="logo_perusahaan" id="edit_logo" class="form-control" accept="image/jpeg,image/png,image/jpg" onchange="previewNewLogo(event)">
-                                <button type="button" class="btn btn-sm btn-danger position-absolute" id="clearEditLogo" style="display: none; top: 4px; right: 4px;" onclick="clearEditLogoPreview()">
-                                    <i class='bx bx-x'></i>
-                                </button>
-                            </div>
-                            <small class="text-muted">Format: JPG, JPEG, PNG | Maksimal 2MB</small>
-                            <div id="newLogoPreview" class="mt-2" style="display: none;">
-                                <img id="newLogoImg" src="" alt="Preview" class="preview-image">
-                            </div>
-                        </div>
-                        
-                        <!-- Data Perwakilan (di tabel perusahaan) -->
-                        <div class="col-12 mt-4">
-                            <h6 class="fw-semibold mb-3">
-                                <i class='bx bx-user me-2 text-success'></i>Data Perwakilan (PIC)
-                            </h6>
-                        </div>
-                        
+                    </div>
+
+                    <hr class="divider">
+                    <div class="dsec" style="margin-bottom:14px;"><i class='bx bx-user me-1'></i>Data Perwakilan (PIC)</div>
+                    <div class="row g-3">
                         <div class="col-md-6">
-                            <label class="form-label small">Nama Perwakilan *</label>
-                            <input type="text" name="nama_perwakilan" id="edit_nama_perwakilan" class="form-control" required maxlength="100">
+                            <label class="flabel">Nama Perwakilan <span style="color:#DC2626;">*</span></label>
+                            <input type="text" name="nama_perwakilan" id="edit_nama_perwakilan" class="fctrl" required maxlength="100">
                         </div>
-                        
                         <div class="col-md-6">
-                            <label class="form-label small">Email Perwakilan *</label>
-                            <input type="email" name="email_perwakilan" id="edit_email_perwakilan" class="form-control" required maxlength="100">
+                            <label class="flabel">Email Perwakilan <span style="color:#DC2626;">*</span></label>
+                            <input type="email" name="email_perwakilan" id="edit_email_perwakilan" class="fctrl" required maxlength="100">
                         </div>
-                        
                         <div class="col-md-6">
-                            <label class="form-label small">Telepon Perwakilan</label>
-                            <input type="text" name="telepon_perwakilan" id="edit_telepon_perwakilan" class="form-control" maxlength="20">
+                            <label class="flabel">Telepon Perwakilan</label>
+                            <input type="text" name="telepon_perwakilan" id="edit_telepon_perwakilan" class="fctrl" maxlength="20">
                         </div>
                     </div>
                 </div>
-                <div class="modal-footer border-0 pt-0">
-                    <button type="button" class="btn btn-light btn-sm" data-bs-dismiss="modal">Batal</button>
-                    <button type="submit" class="btn btn-primary btn-sm">
-                        <i class='bx bx-save me-1'></i>Update
-                    </button>
+                <div class="modal-ftr">
+                    <button type="button" class="btn-outline" data-bs-dismiss="modal">Batal</button>
+                    <button type="submit" class="btn-main"><i class='bx bx-save'></i> Update</button>
                 </div>
             </form>
         </div>
     </div>
 </div>
 
-<!-- Column Settings Modal -->
-<div class="modal fade" id="columnSettingsModal" tabindex="-1">
+{{-- ══════════════════════════════════════
+     MODAL COLUMN SETTINGS
+══════════════════════════════════════ --}}
+<div class="modal fade" id="columnSettingsModal" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered modal-sm">
         <div class="modal-content">
-            <div class="modal-header border-0 pb-0">
-                <h5 class="modal-title fw-semibold">Pengaturan Kolom</h5>
+            <div class="modal-hdr">
+                <div class="modal-hdr-title">
+                    <div class="hdr-icon"><i class='bx bx-columns'></i></div>
+                    Pengaturan Kolom
+                </div>
                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
-            <div class="modal-body pt-2">
-                <div class="form-check mb-2">
-                    <input class="form-check-input column-toggle" type="checkbox" value="no" id="col-no" checked disabled>
-                    <label class="form-check-label small" for="col-no">No Urut</label>
+            <div class="modal-bdy" style="padding-top:14px;">
+                @foreach([
+                    ['no','No Urut',true,true],
+                    ['nama','Perusahaan & Perwakilan',true,true],
+                    ['email','Email',true,false],
+                    ['telepon','Telepon',true,false],
+                    ['alamat','Alamat',true,false],
+                    ['jumlah_projek','Jumlah Projek',true,false],
+                    ['dibuat','Dibuat',false,false],
+                    ['diubah','Diubah',false,false],
+                    ['actions','Aksi',true,true],
+                ] as [$val, $label, $checked, $disabled])
+                <div class="col-check-item">
+                    <input class="column-toggle" type="checkbox" value="{{ $val }}"
+                           id="col-{{ $val }}" {{ $checked?'checked':'' }} {{ $disabled?'disabled':'' }}>
+                    <label for="col-{{ $val }}">{{ $label }}</label>
+                    @if($disabled)<span class="col-lock"><i class='bx bx-lock-alt'></i></span>@endif
                 </div>
-                <div class="form-check mb-2">
-                    <input class="form-check-input column-toggle" type="checkbox" value="nama" id="col-nama" checked disabled>
-                    <label class="form-check-label small" for="col-nama">Perusahaan & Perwakilan</label>
-                </div>
-                <div class="form-check mb-2">
-                    <input class="form-check-input column-toggle" type="checkbox" value="email" id="col-email" checked>
-                    <label class="form-check-label small" for="col-email">Email</label>
-                </div>
-                <div class="form-check mb-2">
-                    <input class="form-check-input column-toggle" type="checkbox" value="telepon" id="col-telepon" checked>
-                    <label class="form-check-label small" for="col-telepon">Telepon</label>
-                </div>
-                <div class="form-check mb-2">
-                    <input class="form-check-input column-toggle" type="checkbox" value="alamat" id="col-alamat" checked>
-                    <label class="form-check-label small" for="col-alamat">Alamat</label>
-                </div>
-                <div class="form-check mb-2">
-                    <input class="form-check-input column-toggle" type="checkbox" value="dibuat" id="col-dibuat">
-                    <label class="form-check-label small" for="col-dibuat">Dibuat</label>
-                </div>
-                <div class="form-check mb-2">
-                    <input class="form-check-input column-toggle" type="checkbox" value="diubah" id="col-diubah">
-                    <label class="form-check-label small" for="col-diubah">Diubah</label>
-                </div>
-                <div class="form-check mb-2">
-                    <input class="form-check-input column-toggle" type="checkbox" value="actions" id="col-actions" checked disabled>
-                    <label class="form-check-label small" for="col-actions">Aksi</label>
-                </div>
+                @endforeach
             </div>
-            <div class="modal-footer border-0 pt-0">
-                <button type="button" class="btn btn-light btn-sm" onclick="resetColumns()">Reset</button>
-                <button type="button" class="btn btn-primary btn-sm" onclick="saveColumnSettings()">Simpan</button>
+            <div class="modal-ftr" style="justify-content:space-between;">
+                <button type="button" class="btn-outline" onclick="resetColumns()">Reset</button>
+                <button type="button" class="btn-main" onclick="saveColumnSettings()"><i class='bx bx-save'></i> Simpan</button>
             </div>
         </div>
     </div>
 </div>
 
-<style>
-/* ===== MODERN TABLE DESIGN ===== */
-/* Company Logo & Avatar */
-.company-logo,
-.company-avatar {
-    width: 42px;
-    height: 42px;
-    border-radius: 10px;
-    flex-shrink: 0;
-}
+@endsection
 
-.company-logo {
-    object-fit: cover;
-    border: 2px solid #e7e7ff;
-}
-
-.company-avatar {
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    color: white;
-    font-size: 20px;
-}
-
-/* Company & Representative Names */
-.company-name {
-    font-weight: 600;
-    color: #2d3748;
-    font-size: 0.9rem;
-    line-height: 1.4;
-}
-
-.representative-name {
-    font-weight: 500;
-    color: #805ad5;
-    font-size: 0.8125rem;
-    line-height: 1.4;
-}
-
-/* Email Container */
-.email-container {
-    display: flex;
-    flex-direction: column;
-    gap: 6px;
-}
-
-.email-item,
-.email-item-secondary {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-}
-
-/* EMAIL ICONS - PERUSAHAAN (HIJAU) */
-.email-icon-company {
-    color: #10b981;
-    font-size: 16px;
-}
-
-/* EMAIL ICONS - PERWAKILAN (PRIMER) */
-.email-icon-person {
-    color: #667eea;
-    font-size: 16px;
-}
-
-.email-text {
-    font-size: 0.8125rem;
-    color: #2d3748;
-    font-weight: 500;
-}
-
-.email-text-secondary {
-    font-size: 0.8125rem;
-    color: #718096;
-    font-weight: 500;
-}
-
-/* Phone Container */
-.phone-container {
-    display: flex;
-    flex-direction: column;
-    gap: 6px;
-}
-
-.phone-item,
-.phone-item-secondary {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-}
-
-/* PHONE ICONS - PERUSAHAAN (HIJAU) */
-.phone-icon-company {
-    color: #10b981;
-    font-size: 16px;
-}
-
-/* PHONE ICONS - PERWAKILAN (PRIMER) */
-.phone-icon-person {
-    color: #667eea;
-    font-size: 16px;
-}
-
-.phone-text {
-    font-size: 0.8125rem;
-    color: #2d3748;
-    font-weight: 500;
-}
-
-.phone-text-secondary {
-    font-size: 0.8125rem;
-    color: #718096;
-    font-weight: 500;
-}
-
-/* Address */
-.address-container {
-    display: flex;
-    align-items: start;
-    gap: 6px;
-}
-
-.address-text {
-    font-size: 0.8125rem;
-    color: #4a5568;
-    line-height: 1.5;
-    display: -webkit-box;
-    -webkit-line-clamp: 2;
-    -webkit-box-orient: vertical;
-    overflow: hidden;
-}
-
-/* Date Text */
-.date-text {
-    font-size: 0.8125rem;
-    color: #718096;
-}
-
-/* Row Number */
-.row-number {
-    font-weight: 600;
-    color: #cbd5e0;
-    font-size: 0.875rem;
-}
-
-/* Search Box */
-.search-box {
-    position: relative;
-    display: flex;
-    align-items: center;
-}
-
-.search-box i.bx-search {
-    position: absolute;
-    left: 12px;
-    color: #a0aec0;
-    font-size: 18px;
-    pointer-events: none;
-    z-index: 1;
-}
-
-.search-box input {
-    padding: 8px 40px 8px 40px;
-    border: 1px solid #e2e8f0;
-    border-radius: 8px;
-    font-size: 0.875rem;
-    width: 220px;
-    transition: all 0.3s ease;
-}
-
-.search-box input:focus {
-    outline: none;
-    border-color: #667eea;
-    box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
-    width: 280px;
-}
-
-.btn-clear-search {
-    position: absolute;
-    right: 6px;
-    background: none;
-    border: none;
-    padding: 4px;
-    cursor: pointer;
-    color: #a0aec0;
-    border-radius: 6px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    transition: all 0.2s ease;
-    z-index: 2;
-}
-
-.btn-clear-search:hover {
-    background: #fed7d7;
-    color: #e53e3e;
-}
-
-/* Table */
-.table {
-    font-size: 0.875rem;
-}
-
-.table thead th {
-    font-weight: 600;
-    color: #4a5568;
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
-    padding: 14px 16px;
-    background: #f7fafc;
-    border: none;
-    font-size: 0.75rem;
-}
-
-.table tbody tr {
-    border-bottom: 1px solid #e2e8f0;
-    transition: all 0.2s ease;
-}
-
-.table tbody tr:hover {
-    background: #f7fafc;
-    transform: translateY(-1px);
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
-}
-
-.table tbody td {
-    padding: 16px;
-    vertical-align: middle;
-    border: none;
-}
-
-/* Sortable Headers */
-.sortable {
-    cursor: pointer;
-    user-select: none;
-    transition: background-color 0.2s ease;
-}
-
-.sortable:hover {
-    background: #edf2f7;
-}
-
-.sort-icon {
-    font-size: 16px;
-    color: #cbd5e0;
-    transition: all 0.3s ease;
-}
-
-.sortable.asc .sort-icon,
-.sortable.desc .sort-icon {
-    color: #667eea;
-}
-
-.sortable.asc .sort-icon {
-    transform: rotate(180deg);
-}
-
-/* Action Buttons */
-.action-buttons {
-    display: inline-flex;
-    gap: 6px;
-}
-
-.action-btn {
-    width: 34px;
-    height: 34px;
-    border: none;
-    background: #f7fafc;
-    border-radius: 8px;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    cursor: pointer;
-    transition: all 0.2s ease;
-    color: #718096;
-}
-
-.action-btn:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-}
-
-.view-btn:hover {
-    background: #bee3f8;
-    color: #2c5282;
-}
-
-.edit-btn:hover {
-    background: #e7e9fd;
-    color: #5145cd;
-}
-
-.delete-btn:hover {
-    background: #fed7d7;
-    color: #c53030;
-}
-
-.action-btn i {
-    font-size: 18px;
-}
-
-/* Card */
-.card {
-    border-radius: 12px;
-    overflow: hidden;
-}
-
-/* Form Controls */
-.form-control,
-.form-select {
-    font-size: 0.875rem;
-    border-color: #e2e8f0;
-    border-radius: 8px;
-    transition: all 0.2s ease;
-}
-
-.form-control:focus,
-.form-select:focus {
-    border-color: #667eea;
-    box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
-}
-
-/* Buttons */
-.btn-sm {
-    font-size: 0.8125rem;
-    padding: 8px 16px;
-    border-radius: 8px;
-    font-weight: 500;
-}
-
-.btn-primary {
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-    border: none;
-}
-
-.btn-primary:hover {
-    background: linear-gradient(135deg, #5145cd 0%, #6a3d8f 100%);
-    transform: translateY(-1px);
-    box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
-}
-
-.btn-light {
-    background: #f7fafc;
-    border-color: #e2e8f0;
-    color: #4a5568;
-}
-
-.btn-light:hover {
-    background: #edf2f7;
-    border-color: #cbd5e0;
-}
-
-/* Empty State */
-.empty-icon {
-    font-size: 56px;
-    color: #e2e8f0;
-}
-
-.empty-text {
-    color: #a0aec0;
-    margin-top: 16px;
-    font-size: 0.9rem;
-}
-
-/* Preview Image */
-.preview-image {
-    max-width: 160px;
-    max-height: 160px;
-    border-radius: 10px;
-    object-fit: cover;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-    border: 2px solid #e2e8f0;
-}
-
-/* Hidden Column */
-.column-hidden {
-    display: none !important;
-}
-
-/* Pagination */
-.pagination {
-    gap: 4px;
-}
-
-.page-link {
-    border-radius: 8px;
-    border-color: #e2e8f0;
-    color: #4a5568;
-    font-size: 0.875rem;
-    padding: 6px 12px;
-}
-
-.page-link:hover {
-    background: #f7fafc;
-    border-color: #cbd5e0;
-}
-
-.page-item.active .page-link {
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-    border: none;
-}
-
-/* Modal Improvements */
-.modal-content {
-    border-radius: 12px;
-    border: none;
-    box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1);
-}
-
-.modal-header h5 {
-    color: #2d3748;
-}
-
-/* Responsive */
-@media (max-width: 768px) {
-    .search-box input {
-        width: 160px;
-    }
-    
-    .search-box input:focus {
-        width: 200px;
-    }
-    
-    .company-logo,
-    .company-avatar {
-        width: 36px;
-        height: 36px;
-        font-size: 18px;
-    }
-    
-    .table {
-        font-size: 0.8125rem;
-    }
-    
-    .action-btn {
-        width: 30px;
-        height: 30px;
-    }
-}
-
-/* Scrollbar */
-.table-responsive::-webkit-scrollbar {
-    height: 8px;
-}
-
-.table-responsive::-webkit-scrollbar-track {
-    background: #f7fafc;
-    border-radius: 10px;
-}
-
-.table-responsive::-webkit-scrollbar-thumb {
-    background: #cbd5e0;
-    border-radius: 10px;
-}
-
-.table-responsive::-webkit-scrollbar-thumb:hover {
-    background: #a0aec0;
-}
-</style>
-
+@push('scripts')
 <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 <script>
-// ===== SESSION ALERTS =====
-@if(session('success'))
-Swal.fire({
-    icon: 'success',
-    title: 'Berhasil!',
-    text: '{{ session('success') }}',
-    confirmButtonColor: '#667eea',
-    timer: 3000,
-    timerProgressBar: true
-});
-@endif
-
-@if(session('error'))
-Swal.fire({
-    icon: 'error',
-    title: 'Gagal!',
-    text: '{{ session('error') }}',
-    confirmButtonColor: '#667eea'
-});
-@endif
-
-// ===== CONSTANTS & CONFIG =====
+'use strict';
 const STORAGE_KEY = 'perusahaan_column_settings';
+let allRows = [], filteredRows = [];
+let currentPage = 1, perPage = 10, currentSearch = '';
+let searchTimeout = null, currentViewBtn = null;
 
-// ===== SEARCH & FILTER =====
-let searchTimeout = null;
-const searchInput = document.getElementById('searchInput');
-const perPageSelect = document.getElementById('perPageSelect');
-const clearSearchBtn = document.getElementById('clearSearch');
-const filterForm = document.getElementById('filterForm');
-
-searchInput.addEventListener('input', function() {
-    const searchValue = this.value.trim();
-    
-    clearSearchBtn.style.display = searchValue.length > 0 ? 'block' : 'none';
-    
-    clearTimeout(searchTimeout);
-    searchTimeout = setTimeout(() => {
-        if (searchValue.length >= 2 || searchValue.length === 0) {
-            filterForm.submit();
-        }
-    }, 400);
+document.addEventListener('DOMContentLoaded', function () {
+    initializeData();
+    loadColumnSettings();
+    initializeEventListeners();
+    renderTable();
 });
 
-clearSearchBtn.addEventListener('click', function() {
-    searchInput.value = '';
-    this.style.display = 'none';
-    filterForm.submit();
-});
+function initializeData() {
+    allRows = Array.from(document.querySelectorAll('#perusahaanTableBody .perusahaan-row')).map(row => ({
+        element:         row,
+        nama_perusahaan: row.dataset.nama_perusahaan,
+        email_perusahaan:row.dataset.email_perusahaan,
+        nama_perwakilan: row.dataset.nama_perwakilan,
+        dibuat_pada:     row.dataset.dibuat_pada,
+        diperbarui_pada: row.dataset.diperbarui_pada,
+    }));
+    filteredRows = [...allRows];
+}
 
-perPageSelect.addEventListener('change', () => filterForm.submit());
+function initializeEventListeners() {
+    const pp = document.getElementById('perPageSelect');
+    pp.value = perPage;
+    pp.addEventListener('change', () => { perPage = parseInt(pp.value); currentPage = 1; renderTable(); });
 
-// ===== COLUMN SETTINGS FUNCTIONS =====
+    const si = document.getElementById('searchInput'), sc = document.getElementById('clearSearch');
+    si.addEventListener('input', function () {
+        sc.style.display = this.value.trim() ? 'block' : 'none';
+        clearTimeout(searchTimeout);
+        searchTimeout = setTimeout(() => { currentSearch = this.value.trim().toLowerCase(); applyFilters(); }, 300);
+    });
+    sc.addEventListener('click', () => { si.value = ''; sc.style.display = 'none'; currentSearch = ''; applyFilters(); });
+
+    document.querySelectorAll('.column-toggle').forEach(t =>
+        t.addEventListener('change', function () { toggleColumn(this.value, this.checked); })
+    );
+
+    document.querySelectorAll('.sortable').forEach(h => {
+        h.addEventListener('click', function () {
+            const col = this.dataset.column, isAsc = this.classList.contains('asc');
+            document.querySelectorAll('.sortable').forEach(x => x.classList.remove('asc','desc'));
+            this.classList.add(isAsc ? 'desc' : 'asc');
+            sortRows(col, isAsc ? 'desc' : 'asc');
+        });
+    });
+
+    document.getElementById('columnSettingsModal')?.addEventListener('show.bs.modal', function () {
+        document.querySelectorAll('.column-toggle:not([disabled])').forEach(t => {
+            const el = document.querySelector(`.column-${t.value}`);
+            if (el) t.checked = !el.classList.contains('column-hidden');
+        });
+    });
+}
+
+// ── Column Settings ──
 function loadColumnSettings() {
-    try {
-        const savedSettings = localStorage.getItem(STORAGE_KEY);
-        
-        const defaultSettings = {
-            'email': true,
-            'telepon': true,
-            'alamat': true,
-            'dibuat': false,
-            'diubah': false
-        };
-        
-        if (savedSettings) {
-            const settings = JSON.parse(savedSettings);
-            
-            document.querySelectorAll('.column-toggle:not([disabled])').forEach(toggle => {
-                const columnName = toggle.value;
-                if (settings.hasOwnProperty(columnName)) {
-                    toggle.checked = settings[columnName];
-                    toggleColumn(columnName, settings[columnName]);
-                } else {
-                    if (defaultSettings.hasOwnProperty(columnName)) {
-                        toggle.checked = defaultSettings[columnName];
-                        toggleColumn(columnName, defaultSettings[columnName]);
-                    }
-                }
-            });
-        } else {
-            document.querySelectorAll('.column-toggle:not([disabled])').forEach(toggle => {
-                const columnName = toggle.value;
-                if (defaultSettings.hasOwnProperty(columnName)) {
-                    toggle.checked = defaultSettings[columnName];
-                    toggleColumn(columnName, defaultSettings[columnName]);
-                } else {
-                    toggleColumn(columnName, toggle.checked);
-                }
-            });
-            
-            saveColumnSettingsToStorage();
-        }
-    } catch (e) {
-        console.error('Error loading column settings:', e);
-        initializeDefaultColumns();
-    }
-}
-
-function initializeDefaultColumns() {
-    const defaultSettings = {
-        'email': true,
-        'telepon': true,
-        'alamat': true,
-        'dibuat': false,
-        'diubah': false
-    };
-    
-    document.querySelectorAll('.column-toggle:not([disabled])').forEach(toggle => {
-        const columnName = toggle.value;
-        if (defaultSettings.hasOwnProperty(columnName)) {
-            toggle.checked = defaultSettings[columnName];
-            toggleColumn(columnName, defaultSettings[columnName]);
-        } else {
-            toggleColumn(columnName, toggle.checked);
-        }
+    const defaults = { email:true, telepon:true, alamat:true, jumlah_projek:true, dibuat:false, diubah:false };
+    let s = { ...defaults };
+    try { const saved = localStorage.getItem(STORAGE_KEY); if (saved) s = { ...defaults, ...JSON.parse(saved) }; } catch(e) {}
+    document.querySelectorAll('.column-toggle:not([disabled])').forEach(t => {
+        t.checked = s.hasOwnProperty(t.value) ? s[t.value] : (defaults[t.value] ?? true);
+        toggleColumn(t.value, t.checked);
     });
 }
-
-function saveColumnSettingsToStorage() {
-    const settings = {};
-    document.querySelectorAll('.column-toggle:not([disabled])').forEach(toggle => {
-        settings[toggle.value] = toggle.checked;
-    });
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(settings));
+function toggleColumn(col, show) {
+    document.querySelectorAll(`.column-${col}`).forEach(el => el.classList.toggle('column-hidden', !show));
 }
-
-function toggleColumn(columnValue, show) {
-    const elements = document.querySelectorAll(`.column-${columnValue}`);
-    elements.forEach(el => {
-        if (show) {
-            el.classList.remove('column-hidden');
-        } else {
-            el.classList.add('column-hidden');
-        }
-    });
-}
-
-document.querySelectorAll('.column-toggle').forEach(toggle => {
-    toggle.addEventListener('change', function() {
-        toggleColumn(this.value, this.checked);
-    });
-});
-
 function saveColumnSettings() {
-    saveColumnSettingsToStorage();
-    
-    const modal = bootstrap.Modal.getInstance(document.getElementById('columnSettingsModal'));
-    if (modal) modal.hide();
-    
-    Swal.fire({
-        icon: 'success',
-        title: 'Berhasil!',
-        text: 'Pengaturan kolom berhasil disimpan',
-        showConfirmButton: false,
-        timer: 1500
-    });
+    const s = {};
+    document.querySelectorAll('.column-toggle:not([disabled])').forEach(t => { s[t.value] = t.checked; });
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(s));
+    bootstrap.Modal.getInstance(document.getElementById('columnSettingsModal'))?.hide();
+    Swal.fire({ icon:'success', title:'Tersimpan', showConfirmButton:false, timer:1200, confirmButtonColor:'#5145cd' });
 }
-
 function resetColumns() {
-    const defaultSettings = {
-        'email': true,
-        'telepon': true,
-        'alamat': true,
-        'dibuat': false,
-        'diubah': false
-    };
-    
-    document.querySelectorAll('.column-toggle:not([disabled])').forEach(toggle => {
-        const columnName = toggle.value;
-        if (defaultSettings.hasOwnProperty(columnName)) {
-            toggle.checked = defaultSettings[columnName];
-            toggleColumn(columnName, defaultSettings[columnName]);
-        } else {
-            toggle.checked = true;
-            toggleColumn(columnName, true);
-        }
-    });
+    const defaults = { email:true, telepon:true, alamat:true, jumlah_projek:true, dibuat:false, diubah:false };
+    document.querySelectorAll('.column-toggle:not([disabled])').forEach(t => { t.checked = defaults[t.value] ?? true; toggleColumn(t.value, t.checked); });
 }
 
-// ===== ROW NUMBERS =====
-function updateRowNumbers() {
-    const visibleRows = Array.from(document.querySelectorAll('.perusahaan-row'))
-        .filter(row => row.style.display !== 'none');
-    visibleRows.forEach((row, index) => {
-        const numberCell = row.querySelector('.row-number');
-        if (numberCell) numberCell.textContent = index + 1;
+// ── Filters & Sort ──
+function applyFilters() {
+    filteredRows = allRows.filter(row => {
+        if (!currentSearch) return true;
+        return row.nama_perusahaan.includes(currentSearch)
+            || row.email_perusahaan.includes(currentSearch)
+            || row.nama_perwakilan.includes(currentSearch);
     });
+    currentPage = 1; renderTable();
+}
+function sortRows(column, direction) {
+    filteredRows.sort((a, b) => {
+        if (['dibuat_pada','diperbarui_pada'].includes(column))
+            return direction === 'asc' ? new Date(a[column]) - new Date(b[column]) : new Date(b[column]) - new Date(a[column]);
+        return direction === 'asc'
+            ? String(a[column]||'').localeCompare(String(b[column]||''))
+            : String(b[column]||'').localeCompare(String(a[column]||''));
+    });
+    renderTable();
 }
 
-// ===== SORTING =====
-document.querySelectorAll('.sortable').forEach(header => {
-    header.addEventListener('click', function() {
-        const column = this.dataset.column;
-        const isAsc = this.classList.contains('asc');
-        
-        document.querySelectorAll('.sortable').forEach(h => h.classList.remove('asc', 'desc'));
-        this.classList.add(isAsc ? 'desc' : 'asc');
-        
-        sortTable(column, isAsc ? 'desc' : 'asc');
-    });
-});
-
-function sortTable(column, direction) {
+// ── Render ──
+function renderTable() {
     const tbody = document.getElementById('perusahaanTableBody');
-    const rows = Array.from(tbody.querySelectorAll('.perusahaan-row'));
-    
-    rows.sort((a, b) => {
-        let aVal = a.dataset[column] || '';
-        let bVal = b.dataset[column] || '';
-        
-        if (column === 'dibuat_pada' || column === 'diperbarui_pada') {
-            aVal = new Date(aVal).getTime() || 0;
-            bVal = new Date(bVal).getTime() || 0;
-            return direction === 'asc' ? aVal - bVal : bVal - aVal;
-        }
-        
-        return direction === 'asc' ? aVal.localeCompare(bVal) : bVal.localeCompare(aVal);
-    });
-    
-    rows.forEach(row => tbody.appendChild(row));
-    updateRowNumbers();
+    tbody.innerHTML = '';
+    const start = (currentPage - 1) * perPage;
+    const page  = filteredRows.slice(start, Math.min(start + perPage, filteredRows.length));
+    if (page.length === 0) {
+        const msg = currentSearch
+            ? `Tidak ada data perusahaan dengan kata kunci "<strong>${currentSearch}</strong>"`
+            : 'Belum ada data perusahaan.';
+        tbody.innerHTML = `<tr><td colspan="9"><div class="empty-state"><i class='bx bx-buildings'></i><p>${msg}</p></div></td></tr>`;
+    } else {
+        page.forEach((row, idx) => {
+            const clone = row.element.cloneNode(true);
+            const n = clone.querySelector('.row-no');
+            if (n) n.textContent = start + idx + 1;
+            tbody.appendChild(clone);
+        });
+    }
+    const end = Math.min(start + perPage, filteredRows.length);
+    document.getElementById('showingStart').textContent = filteredRows.length === 0 ? 0 : start + 1;
+    document.getElementById('showingEnd').textContent   = end;
+    document.getElementById('totalEntries').textContent = filteredRows.length;
+    renderPagination();
+}
+function renderPagination() {
+    const ctrl = document.getElementById('paginationControls');
+    const total = Math.ceil(filteredRows.length / perPage);
+    if (total <= 1) { ctrl.innerHTML = ''; return; }
+    let html = `<li class="page-item ${currentPage===1?'disabled':''}"><a class="page-link" href="javascript:void(0)" onclick="goToPage(${currentPage-1})"><i class='bx bx-chevron-left'></i></a></li>`;
+    let sp = Math.max(1, currentPage-2), ep = Math.min(total, sp+4);
+    if (ep-sp < 4) sp = Math.max(1, ep-4);
+    if (sp > 1) { html+=`<li class="page-item"><a class="page-link" href="javascript:void(0)" onclick="goToPage(1)">1</a></li>`; if(sp>2) html+=`<li class="page-item disabled"><span class="page-link">…</span></li>`; }
+    for (let i=sp; i<=ep; i++) html+=`<li class="page-item ${i===currentPage?'active':''}"><a class="page-link" href="javascript:void(0)" onclick="goToPage(${i})">${i}</a></li>`;
+    if (ep < total) { if(ep<total-1) html+=`<li class="page-item disabled"><span class="page-link">…</span></li>`; html+=`<li class="page-item"><a class="page-link" href="javascript:void(0)" onclick="goToPage(${total})">${total}</a></li>`; }
+    html+=`<li class="page-item ${currentPage===total?'disabled':''}"><a class="page-link" href="javascript:void(0)" onclick="goToPage(${currentPage+1})"><i class='bx bx-chevron-right'></i></a></li>`;
+    ctrl.innerHTML = html;
+}
+function goToPage(page) { const t=Math.ceil(filteredRows.length/perPage); if(page<1||page>t)return; currentPage=page; renderTable(); }
+
+// ── Helpers ──
+function formatDate(str) {
+    if (!str) return '—';
+    return new Date(str).toLocaleDateString('id-ID',{day:'2-digit',month:'2-digit',year:'numeric'})
+         + ' ' + new Date(str).toLocaleTimeString('id-ID',{hour:'2-digit',minute:'2-digit'});
+}
+function logoHTML(logo, nama, size = 60, square = false) {
+    const radius = square ? 'var(--radius-md)' : '50%';
+    if (logo && logo !== 'null' && logo !== '') {
+        return `<img src="/storage/${logo}" alt="${nama}" style="width:${size}px;height:${size}px;border-radius:${radius};object-fit:cover;border:3px solid var(--p-soft);">`;
+    }
+    const letter = nama ? nama.charAt(0).toUpperCase() : '?';
+    return `<div style="width:${size}px;height:${size}px;border-radius:${radius};background:linear-gradient(135deg,var(--p1),var(--p4));display:flex;align-items:center;justify-content:center;color:white;font-size:${Math.round(size*.45)}px;font-weight:700;margin:0 auto;box-shadow:0 4px 16px rgba(105,108,255,.3);"><i class='bx bx-buildings'></i></div>`;
 }
 
-// ===== VIEW PERUSAHAAN =====
-function viewPerusahaan(id) {
-    const button = event.target.closest('button');
-    
-    // Ambil data dari data attributes
-    const namaPerusahaan = button.getAttribute('data-nama-perusahaan');
-    const emailPerusahaan = button.getAttribute('data-email-perusahaan');
-    const teleponPerusahaan = button.getAttribute('data-telepon-perusahaan');
-    const namaPerwakilan = button.getAttribute('data-nama-perwakilan');
-    const emailPerwakilan = button.getAttribute('data-email-perwakilan');
-    const teleponPerwakilan = button.getAttribute('data-telepon-perwakilan');
-    const alamat = button.getAttribute('data-alamat');
-    const logo = button.getAttribute('data-logo');
-    const dibuat = button.getAttribute('data-dibuat');
-    const diubah = button.getAttribute('data-diubah');
-    
-    console.log('View Data:', {
-        namaPerusahaan,
-        emailPerusahaan,
-        teleponPerusahaan,
-        namaPerwakilan,
-        emailPerwakilan,
-        teleponPerwakilan
-    });
-    
-    // Set nama perusahaan (dari users.nama)
-    document.getElementById('view_nama_perusahaan').textContent = namaPerusahaan || '-';
-    document.getElementById('view_nama_perwakilan').textContent = namaPerwakilan || '-';
-    
-    // Set logo
-    const logoContainer = document.getElementById('view_logo_container');
-    if (logo && logo !== 'null' && logo !== '') {
-        logoContainer.innerHTML = `<img src="/storage/${logo}" alt="${namaPerusahaan}" class="company-logo" style="width: 60px; height: 60px;">`;
-    } else {
-        logoContainer.innerHTML = `<div class="company-avatar" style="width: 60px; height: 60px; font-size: 24px;"><i class='bx bx-buildings'></i></div>`;
-    }
-    
-    // Set data perusahaan (dari users)
-    document.getElementById('view_email_perusahaan').textContent = emailPerusahaan || '-';
-    document.getElementById('view_telepon_perusahaan').textContent = teleponPerusahaan || '-';
-    document.getElementById('view_alamat_perusahaan').textContent = alamat || '-';
-    
-    // Set data perwakilan (dari perusahaan)
-    document.getElementById('view_nama_perwakilan_full').textContent = namaPerwakilan || '-';
-    document.getElementById('view_email_perwakilan').textContent = emailPerwakilan || '-';
-    document.getElementById('view_telepon_perwakilan').textContent = teleponPerwakilan || '-';
-    
-    // Set timestamps
-    document.getElementById('view_dibuat_pada').textContent = dibuat || '-';
-    document.getElementById('view_diperbarui_pada').textContent = diubah || '-';
-    
+// ── CRUD ──
+function viewPerusahaan(btn) {
+    const d = JSON.parse(btn.dataset.item);
+    currentViewBtn = btn;
+    document.getElementById('view_logo_container').innerHTML = logoHTML(d.logo_perusahaan, d.nama_perusahaan, 88, true);
+    document.getElementById('view_nama_perusahaan').textContent    = d.nama_perusahaan || '—';
+    document.getElementById('view_email_perusahaan').textContent   = d.email_perusahaan || '—';
+    document.getElementById('view_telepon_perusahaan').textContent = d.telepon_perusahaan || '—';
+    document.getElementById('view_alamat_perusahaan').textContent  = d.alamat_perusahaan || '—';
+    document.getElementById('view_nama_perwakilan').textContent    = d.nama_perwakilan || '—';
+    document.getElementById('view_email_perwakilan').textContent   = d.email_perwakilan || '—';
+    document.getElementById('view_telepon_perwakilan').textContent = d.telepon_perwakilan || '—';
+    const jp = d.jumlah_projek ?? 0;
+    document.getElementById('view_jumlah_projek').innerHTML =
+        jp > 0
+            ? `<span class="proj-pill"><i class='bx bx-folder'></i> ${jp} projek</span>`
+            : `<span class="proj-pill empty"><i class='bx bx-folder'></i> 0 projek</span>`;
+    document.getElementById('view_dibuat_pada').textContent    = formatDate(d.dibuat_pada);
+    document.getElementById('view_diperbarui_pada').textContent = formatDate(d.diperbarui_pada);
+    document.getElementById('view_edit_btn').onclick = function () {
+        bootstrap.Modal.getInstance(document.getElementById('viewPerusahaanModal'))?.hide();
+        setTimeout(() => { if (currentViewBtn) editPerusahaan(currentViewBtn); }, 300);
+    };
     new bootstrap.Modal(document.getElementById('viewPerusahaanModal')).show();
 }
 
-// ===== EDIT PERUSAHAAN =====
-function editPerusahaan(id) {
-    const button = event.target.closest('button');
-    
-    // Ambil data dari data attributes
-    const namaPerusahaan = button.getAttribute('data-nama-perusahaan');
-    const emailPerusahaan = button.getAttribute('data-email-perusahaan');
-    const teleponPerusahaan = button.getAttribute('data-telepon-perusahaan');
-    const namaPerwakilan = button.getAttribute('data-nama-perwakilan');
-    const emailPerwakilan = button.getAttribute('data-email-perwakilan');
-    const teleponPerwakilan = button.getAttribute('data-telepon-perwakilan');
-    const alamat = button.getAttribute('data-alamat');
-    const logo = button.getAttribute('data-logo');
-    
-    console.log('Edit Data:', {
-        namaPerusahaan,
-        emailPerusahaan,
-        teleponPerusahaan,
-        namaPerwakilan,
-        emailPerwakilan,
-        teleponPerwakilan
-    });
-    
-    // Set data perusahaan (dari users)
-    document.getElementById('edit_nama_perusahaan').value = namaPerusahaan || '';
-    document.getElementById('edit_email_perusahaan').value = emailPerusahaan || '';
-    document.getElementById('edit_telepon_perusahaan').value = teleponPerusahaan || '';
-    document.getElementById('edit_alamat_perusahaan').value = alamat || '';
-    
-    // Set data perwakilan (dari perusahaan)
-    document.getElementById('edit_nama_perwakilan').value = namaPerwakilan || '';
-    document.getElementById('edit_email_perwakilan').value = emailPerwakilan || '';
-    document.getElementById('edit_telepon_perwakilan').value = teleponPerwakilan || '';
-    
-    document.getElementById('editPerusahaanForm').action = `/master-data-perusahaan/${id}`;
-    
-    // Reset logo preview
-    document.getElementById('newLogoPreview').style.display = 'none';
+function editPerusahaan(btn) {
+    const d = JSON.parse(btn.dataset.item);
+    document.getElementById('edit_nama_perusahaan').value    = d.nama_perusahaan || '';
+    document.getElementById('edit_email_perusahaan').value   = d.email_perusahaan || '';
+    document.getElementById('edit_telepon_perusahaan').value = d.telepon_perusahaan || '';
+    document.getElementById('edit_alamat_perusahaan').value  = d.alamat_perusahaan || '';
+    document.getElementById('edit_nama_perwakilan').value    = d.nama_perwakilan || '';
+    document.getElementById('edit_email_perwakilan').value   = d.email_perwakilan || '';
+    document.getElementById('edit_telepon_perwakilan').value = d.telepon_perwakilan || '';
+    document.getElementById('edit_password').value           = '';
+    document.getElementById('editPerusahaanForm').action     = `/master-data-perusahaan/${d.id_perusahaan}`;
+    document.getElementById('currentLogoPreview').innerHTML  = logoHTML(d.logo_perusahaan, d.nama_perusahaan, 60, true);
+    document.getElementById('editLogoPreview').style.display = 'none';
     document.getElementById('edit_logo').value = '';
-    document.getElementById('clearEditLogo').style.display = 'none';
-    document.getElementById('edit_password').value = '';
-    
-    // Show current logo
-    const currentLogoPreview = document.getElementById('currentLogoPreview');
-    if (logo && logo !== 'null' && logo !== '') {
-        currentLogoPreview.innerHTML = `<img src="/storage/${logo}" alt="${namaPerusahaan}" class="preview-image">`;
-    } else {
-        currentLogoPreview.innerHTML = `<div class="company-avatar" style="width: 60px; height: 60px;"><i class='bx bx-buildings'></i></div>`;
-    }
-    
     new bootstrap.Modal(document.getElementById('editPerusahaanModal')).show();
 }
 
-// ===== LOGO VALIDATION & PREVIEW =====
-function validateLogo(file) {
-    const validTypes = ['image/jpeg', 'image/jpg', 'image/png'];
-    const maxSize = 2 * 1024 * 1024;
-    
-    if (!validTypes.includes(file.type)) {
-        Swal.fire({
-            icon: 'error',
-            title: 'Format Tidak Valid',
-            text: 'Gunakan format JPG, JPEG, atau PNG',
-            confirmButtonColor: '#667eea'
-        });
-        return false;
-    }
-    
-    if (file.size > maxSize) {
-        Swal.fire({
-            icon: 'error',
-            title: 'Ukuran Terlalu Besar',
-            text: 'Ukuran logo maksimal 2MB',
-            confirmButtonColor: '#667eea'
-        });
-        return false;
-    }
-    
-    return true;
-}
-
-function previewAddLogo(event) {
-    const file = event.target.files[0];
-    if (file) {
-        if (!validateLogo(file)) {
-            event.target.value = '';
-            return;
-        }
-        
-        const reader = new FileReader();
-        reader.onload = function(e) {
-            document.getElementById('addLogoImg').src = e.target.result;
-            document.getElementById('addLogoPreview').style.display = 'block';
-            document.getElementById('clearAddLogo').style.display = 'block';
-        };
-        reader.readAsDataURL(file);
-    }
-}
-
-function previewNewLogo(event) {
-    const file = event.target.files[0];
-    if (file) {
-        if (!validateLogo(file)) {
-            event.target.value = '';
-            return;
-        }
-        
-        const reader = new FileReader();
-        reader.onload = function(e) {
-            document.getElementById('newLogoImg').src = e.target.result;
-            document.getElementById('newLogoPreview').style.display = 'block';
-            document.getElementById('clearEditLogo').style.display = 'block';
-        };
-        reader.readAsDataURL(file);
-    }
-}
-
-function clearAddLogoPreview() {
-    document.getElementById('add_logo').value = '';
-    document.getElementById('addLogoPreview').style.display = 'none';
-    document.getElementById('clearAddLogo').style.display = 'none';
-}
-
-function clearEditLogoPreview() {
-    document.getElementById('edit_logo').value = '';
-    document.getElementById('newLogoPreview').style.display = 'none';
-    document.getElementById('clearEditLogo').style.display = 'none';
-}
-
-// ===== TOGGLE PASSWORD =====
-function togglePassword(inputId, iconId) {
-    const input = document.getElementById(inputId);
-    const icon = document.getElementById(iconId);
-    
-    if (input.type === 'password') {
-        input.type = 'text';
-        icon.classList.remove('bx-hide');
-        icon.classList.add('bx-show');
-    } else {
-        input.type = 'password';
-        icon.classList.remove('bx-show');
-        icon.classList.add('bx-hide');
-    }
-}
-
-// ===== DELETE PERUSAHAAN =====
 function deletePerusahaan(id, nama) {
     Swal.fire({
-        title: 'Hapus Perusahaan?',
-        html: `Anda akan menghapus <strong>${nama}</strong> beserta akses login-nya`,
-        icon: 'warning',
-        showCancelButton: true,
-        confirmButtonColor: '#e53e3e',
-        cancelButtonColor: '#718096',
-        confirmButtonText: 'Ya, Hapus',
-        cancelButtonText: 'Batal'
-    }).then((result) => {
-        if (result.isConfirmed) {
-            const form = document.createElement('form');
-            form.method = 'POST';
-            form.action = `/master-data-perusahaan/${id}`;
-            form.innerHTML = `
-                <input type="hidden" name="_token" value="{{ csrf_token() }}">
-                <input type="hidden" name="_method" value="DELETE">
-            `;
-            document.body.appendChild(form);
-            form.submit();
+        title:'Hapus Perusahaan?',
+        html:`Tindakan ini akan menghapus <strong>${nama}</strong> beserta akses login-nya secara permanen.`,
+        icon:'warning', showCancelButton:true,
+        confirmButtonColor:'#DC2626', cancelButtonColor:'#6B7280',
+        confirmButtonText:'Hapus', cancelButtonText:'Batal'
+    }).then(r => {
+        if (r.isConfirmed) {
+            const f = document.createElement('form');
+            f.method = 'POST'; f.action = `/master-data-perusahaan/${id}`;
+            f.innerHTML = `<input type="hidden" name="_token" value="{{ csrf_token() }}"><input type="hidden" name="_method" value="DELETE">`;
+            document.body.appendChild(f); f.submit();
         }
     });
 }
 
-// ===== FORM SUBMISSIONS =====
-['addPerusahaanForm', 'editPerusahaanForm'].forEach(formId => {
-    const form = document.getElementById(formId);
-    if (form) {
-        form.addEventListener('submit', function(e) {
-            e.preventDefault();
-            
-            const modalId = formId === 'addPerusahaanForm' ? 'addPerusahaanModal' : 'editPerusahaanModal';
-            const modal = bootstrap.Modal.getInstance(document.getElementById(modalId));
-            if (modal) modal.hide();
-            
-            setTimeout(() => {
-                Swal.fire({
-                    title: 'Memproses...',
-                    allowOutsideClick: false,
-                    didOpen: () => Swal.showLoading()
-                });
-                this.submit();
-            }, 300);
-        });
+// ── Logo ──
+function previewLogo(event, imgId, previewId) {
+    const file = event.target.files[0]; if (!file) return;
+    if (!['image/jpeg','image/jpg','image/png'].includes(file.type)) {
+        Swal.fire({ icon:'error', title:'Format Tidak Valid', text:'Gunakan JPG, JPEG, atau PNG', confirmButtonColor:'#5145cd' });
+        event.target.value = ''; return;
     }
-});
-
-// ===== INITIALIZATION =====
-document.addEventListener('DOMContentLoaded', function() {
-    loadColumnSettings();
-    
-    if (searchInput && searchInput.value.trim().length > 0) {
-        clearSearchBtn.style.display = 'block';
+    if (file.size > 2*1024*1024) {
+        Swal.fire({ icon:'error', title:'Terlalu Besar', text:'Ukuran logo maksimal 2MB', confirmButtonColor:'#5145cd' });
+        event.target.value = ''; return;
     }
-    
-    updateRowNumbers();
-});
+    const reader = new FileReader();
+    reader.onload = e => { document.getElementById(imgId).src = e.target.result; document.getElementById(previewId).style.display = 'flex'; };
+    reader.readAsDataURL(file);
+}
+function clearLogo(inputId, imgId, previewId) {
+    document.getElementById(inputId).value = '';
+    document.getElementById(imgId).src = '';
+    document.getElementById(previewId).style.display = 'none';
+}
 
-document.getElementById('columnSettingsModal')?.addEventListener('show.bs.modal', function() {
-    document.querySelectorAll('.column-toggle:not([disabled])').forEach(toggle => {
-        const columnName = toggle.value;
-        const element = document.querySelector(`.column-${columnName}`);
-        if (element) {
-            const isVisible = !element.classList.contains('column-hidden');
-            toggle.checked = isVisible;
-        }
+// ── Password ──
+function togglePw(inputId, iconId) {
+    const inp = document.getElementById(inputId), ic = document.getElementById(iconId);
+    const show = inp.type === 'password';
+    inp.type = show ? 'text' : 'password';
+    ic.className = show ? 'bx bx-show' : 'bx bx-hide';
+}
+
+// ── Form Submit ──
+['addPerusahaanForm','editPerusahaanForm'].forEach(formId => {
+    const form = document.getElementById(formId); if (!form) return;
+    form.addEventListener('submit', function (e) {
+        e.preventDefault();
+        const mid = formId === 'addPerusahaanForm' ? 'addPerusahaanModal' : 'editPerusahaanModal';
+        bootstrap.Modal.getInstance(document.getElementById(mid))?.hide();
+        setTimeout(() => { Swal.fire({ title:'Memproses...', allowOutsideClick:false, didOpen:() => Swal.showLoading() }); this.submit(); }, 300);
     });
-});
-
-const observer = new MutationObserver(function(mutations) {
-    mutations.forEach(function(mutation) {
-        if (mutation.type === 'attributes' && mutation.attributeName === 'style') {
-            updateRowNumbers();
-        }
-    });
-});
-
-document.querySelectorAll('.perusahaan-row').forEach(row => {
-    observer.observe(row, { attributes: true, attributeFilter: ['style'] });
 });
 </script>
-@endsection
+@endpush

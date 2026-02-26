@@ -9,26 +9,19 @@ return new class extends Migration
     public function up(): void
     {
         Schema::create('users', function (Blueprint $table) {
-            $table->bigIncrements('id_user'); // Primary Key
+            $table->bigIncrements('id_user');
             $table->string('nama', 100);
             $table->string('email', 100)->unique();
             $table->string('password', 255);
-
-            $table->enum('role', ['admin', 'pm', 'karyawan', 'klien'])
+            // ✅ FIX: 'PM' uppercase agar konsisten dengan form & controller
+            $table->enum('role', ['admin', 'PM', 'karyawan', 'klien'])
                 ->default('karyawan');
-
-            // 🔗 Relasi ke job_roles
             $table->unsignedBigInteger('id_job_role')->nullable();
-
             $table->string('no_hp', 20)->nullable();
             $table->string('foto', 255)->nullable();
-
-            $table->boolean('status')->default(true); // Aktif / nonaktif
-
+            $table->boolean('status')->default(true);
             $table->rememberToken();
             $table->timestamps();
-
-            // Foreign Key
             $table->foreign('id_job_role')
                 ->references('id_job_role')
                 ->on('job_roles')

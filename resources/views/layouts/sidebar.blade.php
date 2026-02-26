@@ -82,6 +82,12 @@
         </li>
 
         <!-- Master Data Projek -->
+         <li class="menu-item {{ request()->routeIs('master-data-kategori-projek.*') ? 'active' : '' }}">
+            <a href="{{ route('master-data-kategori-projek.index') }}" class="menu-link">
+                <i class="menu-icon tf-icons bx bx-briefcase"></i>
+                <div data-i18n="Analytics">Master Data Kategori Projek</div>
+            </a>
+        </li>
         <li class="menu-item {{ request()->routeIs('master-data-projek.*') ? 'active' : '' }}">
             <a href="{{ route('master-data-projek.index') }}" class="menu-link">
                 <i class="menu-icon tf-icons bx bx-briefcase"></i>

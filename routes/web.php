@@ -3,6 +3,7 @@
 use App\Http\Controllers\Auth\AuthenticatedSessionController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\JobRoleController;
+use App\Http\Controllers\KategoriProjectController;
 use App\Http\Controllers\PerusahaanController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\ProjekController;
@@ -79,15 +80,19 @@ Route::middleware(['auth'])->group(function () {
         'destroy' => 'master-data-perusahaan.destroy',
     ]);
 });
-
-// Route untuk Master Data Project
 Route::middleware(['auth'])->group(function () {
     Route::get('/master-data-projek', [ProjekController::class, 'index'])->name('master-data-projek.index');
     Route::post('/master-data-projek', [ProjekController::class, 'store'])->name('master-data-projek.store');
     Route::put('/master-data-projek/{projek}', [ProjekController::class, 'update'])->name('master-data-projek.update');
     Route::delete('/master-data-projek/{projek}', [ProjekController::class, 'destroy'])->name('master-data-projek.destroy');
-});
+    Route::get('/master-data-projek/{projek}/laporan', [ProjekController::class, 'laporan'])->name('master-data-projek.laporan');
+    Route::patch('/master-data-projek/{id}/status', [ProjekController::class, 'updateStatus'])->name('master-data-projek.updateStatus');
 
+    // ← Tambah ini agar GET /master-data-projek/1 tidak 405
+    Route::get('/master-data-projek/{projek}', function () {
+        return redirect()->route('master-data-projek.index');
+    });
+});
 
 // Master Data Tugas
 Route::prefix('master-data-tugas')->name('master-data-tugas.')->group(function () {
@@ -106,6 +111,16 @@ Route::prefix('master-data-jobrole')->name('master-data-jobrole.')->group(functi
     Route::delete('/{id}', [JobRoleController::class, 'destroy'])->name('destroy');
     
 });
+
+Route::prefix('master-data-kategori-projek')->name('master-data-kategori-projek.')->group(function () {
+    Route::get('/', [KategoriProjectController::class, 'index'])->name('index');
+    Route::post('/', [KategoriProjectController::class, 'store'])->name('store');
+    Route::put('/{id}', [KategoriProjectController::class, 'update'])->name('update');
+    Route::put('/{id}/status', [KategoriProjectController::class, 'updateStatus'])->name('update-status');
+    Route::delete('/{id}', [KategoriProjectController::class, 'destroy'])->name('destroy');
+});
+
+
 
 // Redirect root ke dashboard jika sudah login, atau ke login jika belum
 Route::get('/', function () {
