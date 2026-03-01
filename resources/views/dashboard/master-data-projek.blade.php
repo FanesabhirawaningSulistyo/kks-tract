@@ -403,7 +403,7 @@
                         <div class="export-dropdown-menu" id="edm-{{ $projek->id_projek }}">
                             <button class="export-dropdown-item"
                                 onclick="exportProjectPDF({{ $projek->id_projek }}); closeAllExportDropdowns()">
-                                <i class="bx bx-file-pdf" style="color:#EF4444;font-size:16px;"></i> Export PDF
+                                <i class="bx bxs-file-pdf" style="color:#EF4444;font-size:16px;"></i> Export PDF
                             </button>
                             <button class="export-dropdown-item"
                                 onclick="exportProjectExcel({{ $projek->id_projek }}); closeAllExportDropdowns()">
@@ -1130,7 +1130,7 @@ document.getElementById('view_tanggal_selesai').textContent = fmtDate(p.tanggal_
     if (p.total_weight > 0) {
         progEl.innerHTML = `<div style="display:flex;align-items:center;gap:12px;width:100%;"><div class="prog-track" style="flex:1;height:10px;"><div class="prog-fill" style="width:${p.progress}%;background:${color};"></div></div><span style="font-weight:800;color:${color};min-width:44px;text-align:right;font-size:15px;">${p.progress}%</span></div>`;
         // Keterangan: done+approved / total non-draft
-        detEl.innerHTML  = `<span style="font-weight:700;color:${color};">${p.approved_count} tugas done+approved</span><span style="color:var(--ink-400);"> dari ${p.total_count} tugas non-draft (weight: ${p.approved_weight}/${p.total_weight})</span>`;
+        detEl.innerHTML  = `<span style="font-weight:700;color:${color};">${p.approved_count} tugas done+approved</span><span style="color:var(--ink-400);"> dari ${p.total_count} tugas (weight: ${p.approved_weight}/${p.total_weight})</span>`;
     } else {
         progEl.innerHTML = `<span style="color:var(--ink-300);font-weight:600;">0% — Belum ada tugas aktif</span>`;
         detEl.textContent = '—';
@@ -1511,7 +1511,7 @@ function _buildPdfForProject(p) {
         return `<div class="pdf-legend-item"><div class="pdf-legend-dot" style="background:${SA_COLORS[r.key]};"></div><span>${r.label}: <strong>${r.n}</strong> task (${pct}%)</span></div>`;
     }).join('');
 
-    html += `<div class="pdf-section-header"><span>Statistik &amp; Distribusi Status (Tidak Termasuk Draft)</span></div>
+    html += `<div class="pdf-section-header"><span>Statistik &amp; Distribusi Status</span></div>
     <div style="padding:16px 28px;background:white;border-bottom:1px solid #E5E7EB;">
 
         <!-- Baris atas: 2 tabel berdampingan -->
@@ -1587,13 +1587,13 @@ function _buildPdfForProject(p) {
 
         <!-- Progress bar penyelesaian -->
         <div class="pdf-completion-block" style="margin-top:14px;">
-            <div class="pdf-completion-label">Tingkat Penyelesaian Proyek (Done + Approved PM / Total Non-Draft)</div>
+            <div class="pdf-completion-label">Tingkat Penyelesaian Proyek (Done + Approved PM / Total )</div>
             <div class="pdf-completion-nums">${s.pct}% &mdash; ${s.appr} dari ${s.tot} task done &amp; disetujui PM (Weight: ${s.approvedWeight}/${s.totalWeight})</div>
             <div class="pdf-bar-bg"><div class="pdf-bar-fill" style="width:${s.pct}%;"></div></div>
         </div>
     </div>`;
     // ── Detail Task (sudah filtered, tanpa draft)
-    html += `<div class="pdf-section-header"><span>Detail Task (${tasks.length} task, tidak termasuk draft)</span></div>
+    html += `<div class="pdf-section-header"><span>Detail Task (${tasks.length} task)</span></div>
     <div class="pdf-tasks-wrap">`;
     if (!tasks.length) {
         html += `<div style="padding:20px;text-align:center;color:#9CA3AF;font-size:12px;font-family:'Segoe UI',Arial,sans-serif;">Belum ada task aktif dalam proyek ini.</div>`;
@@ -1892,7 +1892,7 @@ async function exportProjectExcel(id) {
     });
     ws1.getRow(17).height = 14;
     ws1.getRow(18).height = 22;
-    mergeWrite(ws1,18,2,18,8,'▌  STATISTIK TASK (TIDAK TERMASUK DRAFT)',{
+    mergeWrite(ws1,18,2,18,8,'▌  STATISTIK TASK',{
         font:{ name:'Times New Roman', size:12, bold:true, color:{ argb:'FF1E2A3A' } },
         fill:{ type:'pattern', pattern:'solid', fgColor:{ argb:'FFE2E8F0' } },
         alignment:ALIGN_LC,
@@ -2026,7 +2026,7 @@ async function exportProjectExcel(id) {
     }
     ws2.getRow(3).height = 32;
     mergeWrite(ws2,3,1,3,13,
-        `DAFTAR TASK PROYEK  ·  ${p.nama_projek}  ·  ${tasks.length} task (tidak termasuk draft)`,
+        `DAFTAR TASK PROYEK  ·  ${p.nama_projek}  ·  ${tasks.length} task`,
         { font:{ name:'Times New Roman', size:14, bold:true, color:{ argb:'FFFFFFFF' } }, fill:FILL_NAVY, alignment:ALIGN_LC }
     );
     ws2.getRow(4).height = 18;
