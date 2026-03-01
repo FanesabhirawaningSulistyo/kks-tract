@@ -21,9 +21,9 @@ return new class extends Migration
 
             $table->enum('status_progress', [
                 'draft',
-                'publis',
-                'progres',
-                'selesai'
+                'To Do',
+                'In Progress',
+                'done'
             ])->default('draft');
 
             $table->enum('status_akhir', [
@@ -32,7 +32,10 @@ return new class extends Migration
                 'approved'
             ])->nullable();
 
+            
+            $table->date('tanggal_mulai')->nullable();
             $table->date('tenggat_waktu')->nullable();
+            $table->date('tanggal_selesai')->nullable();
             $table->timestamp('dibuat_pada')->useCurrent();
             $table->timestamp('diubah_pada')->useCurrent()->useCurrentOnUpdate();
 

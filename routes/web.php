@@ -121,6 +121,26 @@ Route::prefix('master-data-kategori-projek')->name('master-data-kategori-projek.
 });
 
 
+Route::prefix('projek/{id_projek}/task')->name('task.')->middleware('auth')->group(function () {
+    // Halaman utama kelola task
+    Route::get('/', [TaskController::class, 'index'])->name('index');
+
+    // API Task CRUD (JSON)
+    Route::get('/data', [TaskController::class, 'getTasks'])->name('data');
+    Route::post('/', [TaskController::class, 'storeTask'])->name('store');
+    Route::put('/{id_tugas}', [TaskController::class, 'updateTask'])->name('update');
+    Route::patch('/{id_tugas}/status-akhir', [TaskController::class, 'updateStatusAkhir'])->name('status-akhir');
+    Route::delete('/{id_tugas}', [TaskController::class, 'destroyTask'])->name('destroy');
+
+    // Foto Tugas
+    Route::post('/{id_tugas}/foto', [TaskController::class, 'uploadFoto'])->name('foto.upload');
+    Route::delete('/{id_tugas}/foto/{id_foto}', [TaskController::class, 'destroyFoto'])->name('foto.destroy');
+
+    // Tim Project
+    Route::post('/tim/invite', [TaskController::class, 'inviteTim'])->name('tim.invite');
+    Route::delete('/tim/{id_tim}', [TaskController::class, 'removeTim'])->name('tim.remove');
+});
+
 
 // Redirect root ke dashboard jika sudah login, atau ke login jika belum
 Route::get('/', function () {

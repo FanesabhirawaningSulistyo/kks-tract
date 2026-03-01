@@ -5,7 +5,6 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
-
 class Projek extends Model
 {
     use HasFactory;
@@ -13,8 +12,8 @@ class Projek extends Model
     protected $table      = 'projek';
     protected $primaryKey = 'id_projek';
 
-    const CREATED_AT  = 'dibuat_pada';
-    const UPDATED_AT  = 'diperbarui_pada';
+    const CREATED_AT = 'dibuat_pada';
+    const UPDATED_AT = 'diperbarui_pada';
 
     protected $fillable = [
         'id_perusahaan',
@@ -74,7 +73,17 @@ class Projek extends Model
     }
 
     /**
-     * Anggota tim projek (pivot ke users)
+     * Anggota tim projek via tabel projek_tim (model ProjekTim)
+     * Digunakan oleh TaskController: $projek->tim
+     */
+    public function tim()
+    {
+        return $this->hasMany(ProjekTim::class, 'id_projek', 'id_projek');
+    }
+
+    /**
+     * Anggota tim projek (pivot langsung ke users)
+     * Digunakan jika butuh akses User tanpa melalui ProjekTim
      */
     public function timKerja()
     {
@@ -126,13 +135,11 @@ class Projek extends Model
      */
     public function getProgressProjekAttribute(): float
     {
-        // Gunakan relasi yang sudah di-eager load jika ada, hindari N+1
         $tugasCollection = $this->relationLoaded('tugas')
             ? $this->tugas
             : $this->tugas()->get();
 
         $totalWeight = $tugasCollection->sum('weight');
-
         if ($totalWeight <= 0) return 0;
 
         $approvedWeight = $tugasCollection

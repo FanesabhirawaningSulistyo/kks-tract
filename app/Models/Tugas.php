@@ -6,10 +6,10 @@ use Illuminate\Database\Eloquent\Model;
 
 class Tugas extends Model
 {
-    protected $table = 'tugas';
+    protected $table      = 'tugas';
     protected $primaryKey = 'id_tugas';
-    public $incrementing = true;
-    protected $keyType = 'int';
+    public    $incrementing = true;
+    protected $keyType    = 'int';
 
     const CREATED_AT = 'dibuat_pada';
     const UPDATED_AT = 'diubah_pada';
@@ -23,30 +23,37 @@ class Tugas extends Model
         'weight',
         'status_progress',
         'status_akhir',
-        'tenggat_waktu'
+        'tenggat_waktu',
+        'tanggal_mulai',
+        'tanggal_selesai',  // ← Diisi otomatis saat done
     ];
 
     protected $casts = [
-        'tenggat_waktu' => 'date',
-        'dibuat_pada'   => 'datetime',
-        'diubah_pada'   => 'datetime'
+        'tenggat_waktu'   => 'date',
+        'tanggal_mulai'   => 'date',
+        'tanggal_selesai' => 'date',
+        'dibuat_pada'     => 'datetime',
+        'diubah_pada'     => 'datetime',
     ];
 
     /*
     |--------------------------------------------------------------------------
-    | RELATION
+    | RELATIONS
     |--------------------------------------------------------------------------
     */
 
-    // Relasi ke Projek
     public function projek()
     {
         return $this->belongsTo(Projek::class, 'id_projek', 'id_projek');
     }
 
-    // Relasi ke ProjekTim
     public function tim()
     {
         return $this->belongsTo(ProjekTim::class, 'id_tim', 'id_tim');
+    }
+
+    public function foto()
+    {
+        return $this->hasMany(TugasFoto::class, 'id_tugas', 'id_tugas');
     }
 }

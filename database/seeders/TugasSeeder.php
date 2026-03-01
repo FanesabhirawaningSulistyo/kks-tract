@@ -4,6 +4,7 @@ namespace Database\Seeders;
 
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\DB;
+use Carbon\Carbon;
 
 class TugasSeeder extends Seeder
 {
@@ -45,20 +46,57 @@ class TugasSeeder extends Seeder
                     'susah'  => 3,
                 ];
 
-                // RANDOM STATUS PROGRESS
-                $statusProgressList = ['draft', 'progres', 'selesai'];
+                $statusProgressList = ['draft', 'To Do', 'In Progress', 'done'];
                 $statusProgress = $statusProgressList[array_rand($statusProgressList)];
 
-                // LOGIKA STATUS AKHIR
                 $statusAkhir = null;
 
-                if ($statusProgress === 'progres') {
+                if ($statusProgress === 'In Progress') {
                     $statusAkhir = 'review';
                 }
 
-                if ($statusProgress === 'selesai') {
+                if ($statusProgress === 'done') {
                     $statusAkhirList = ['review', 'revisi', 'approved'];
                     $statusAkhir = $statusAkhirList[array_rand($statusAkhirList)];
+                }
+
+                /*
+                 * ATURAN BARU:
+                 * - Tahun 2026
+                 * - Bulan hanya Januari (1) atau Februari (2)
+                 * - Tanggal mulai 7–14
+                 * - Durasi 5–12 hari
+                 * - Tidak boleh lewat Februari
+                 */
+
+                // Bulan hanya Januari atau Februari
+                $bulan = rand(1, 2);
+
+                // Tanggal mulai antara 7–14
+                $tanggalMulai = Carbon::create(
+                    2026,
+                    $bulan,
+                    rand(7, 14)
+                );
+
+                // Durasi 5–12 hari
+                $durasi = rand(5, 12);
+
+                $tenggatWaktu = (clone $tanggalMulai)->addDays($durasi);
+
+                // Jika melewati Februari, paksa ke 28 Februari 2026
+                $batasAkhirFeb = Carbon::create(2026, 2, 28);
+
+                if ($tenggatWaktu->gt($batasAkhirFeb)) {
+                    $tenggatWaktu = $batasAkhirFeb;
+                }
+
+                // tanggal_selesai hanya jika task selesai
+                $tanggalSelesai = null;
+
+                if ($statusProgress === 'done') {
+                    $tanggalSelesai = (clone $tenggatWaktu)
+                        ->subDays(rand(0, 2)); // selesai mendekati deadline
                 }
 
                 DB::table('tugas')->insert([
@@ -70,7 +108,9 @@ class TugasSeeder extends Seeder
                     'weight'          => $weightMap[$level],
                     'status_progress' => $statusProgress,
                     'status_akhir'    => $statusAkhir,
-                    'tenggat_waktu'   => now()->addDays(rand(5, 30)),
+                    'tanggal_mulai'   => $tanggalMulai,
+                    'tenggat_waktu'   => $tenggatWaktu,
+                    'tanggal_selesai' => $tanggalSelesai,
                     'dibuat_pada'     => $now,
                     'diubah_pada'     => $now,
                 ]);

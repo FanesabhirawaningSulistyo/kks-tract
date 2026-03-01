@@ -15,8 +15,8 @@ class ProjekSeeder extends Seeder
             'status'          => 'aktif',
             'nominal_projek'  => 25000000.00,
             'sisa_tanggungan' => 10000000.00,
-            'tanggal_mulai'   => '2025-01-10',
-            'tanggal_selesai' => '2025-04-10',
+            'tanggal_mulai'   => '2026-01-10',
+            'tanggal_selesai' => '2026-04-10',
         ],
         [
             'nama_projek'     => 'Portal Internal Karyawan',
@@ -25,8 +25,8 @@ class ProjekSeeder extends Seeder
             'status'          => 'in_progress',
             'nominal_projek'  => 35000000.00,
             'sisa_tanggungan' => 17500000.00,
-            'tanggal_mulai'   => '2025-02-01',
-            'tanggal_selesai' => '2025-06-01',
+            'tanggal_mulai'   => '2026-02-01',
+            'tanggal_selesai' => '2026-06-01',
         ],
         [
             'nama_projek'     => 'Aplikasi Kasir Android',
@@ -35,14 +35,16 @@ class ProjekSeeder extends Seeder
             'status'          => 'pending',
             'nominal_projek'  => 40000000.00,
             'sisa_tanggungan' => 40000000.00,
-            'tanggal_mulai'   => '2025-03-01',
-            'tanggal_selesai' => '2025-07-01',
+            'tanggal_mulai'   => '2026-03-01',
+            'tanggal_selesai' => '2026-07-01',
         ],
     ];
 
     public function run(): void
     {
         $now = now();
+        $insertedProjek = 0;
+        $insertedTim    = 0;
 
         // Ambil kategori
         $kategori = DB::table('kategori_projek')
@@ -85,9 +87,6 @@ class ProjekSeeder extends Seeder
             ->where('status', true)
             ->pluck('id_user')
             ->toArray();
-
-        $insertedProjek = 0;
-        $insertedTim    = 0;
 
         foreach ($perusahaanList as $index => $perusahaan) {
 
