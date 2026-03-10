@@ -20,5 +20,9 @@ class DatabaseSeeder extends Seeder
         $this->call(ProjekSeeder::class);
         $this->call(ProjekTimSeeder::class);
         $this->call(TugasSeeder::class);
+        $this->call(MetodePembayaranSeeder::class);
+        $this->call(PembayaranProjekSeeder::class);
+
+        
     }
 }

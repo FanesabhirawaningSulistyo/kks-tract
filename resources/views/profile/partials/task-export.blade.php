@@ -2,7 +2,7 @@
 |--------------------------------------------------------------------------
 | partials/task-export.blade.php
 |--------------------------------------------------------------------------
-| Partial export PDF & Excel untuk halaman Kelola Task.
+| Partial export PDF untuk halaman Kelola Task.
 | Di-include dari kelola-task.blade.php:
 |
 |   @include('partials.task-export', [
@@ -16,9 +16,6 @@
 --}}
 @push('styles')
 <style>
-/* ── Export Dropdown hover ── */
-#exportDropdown button:hover { background: var(--gray-50); }
-
 /* ══ PDF PREVIEW MODAL ══ */
 #pdfPreviewModal {
     position: fixed; inset: 0; z-index: 10000;
@@ -53,7 +50,7 @@
 #pdfPreviewContent { flex: 1; overflow-y: auto; padding: 24px; background: #F3F4F6; }
 
 /* ══════════════════════════════════════
-   PDF PAGE STYLES — sama persis dengan master data project
+   PDF PAGE STYLES
 ══════════════════════════════════════ */
 .pdf-wrap { font-family: 'Georgia','Times New Roman',serif; max-width: 794px; margin: 0 auto; color: #1F2937; background: white; border: 1px solid #D1D5DB; display: flex; flex-direction: column; min-height: 297mm; }
 .pdf-letterhead { background: #1E2A3A; padding: 20px 28px 18px; display: flex; justify-content: space-between; align-items: flex-start; }
@@ -128,7 +125,6 @@
 .pdf-empty-foto { background: #F9FAFB; border: 1px dashed #D1D5DB; border-radius: 3px; padding: 10px; text-align: center; font-size: 10px; color: #9CA3AF; font-style: italic; font-family: 'Segoe UI',Arial,sans-serif; }
 .pdf-doc-footer { background: #1E2A3A; padding: 9px 28px; display: flex; justify-content: space-between; align-items: center; margin-top: auto; }
 .pdf-doc-footer span { font-size: 9px; color: #9CA3AF; font-family: 'Segoe UI',Arial,sans-serif; }
-.pdf-footer-spacer { display: none; }
 </style>
 @endpush
 
@@ -154,6 +150,7 @@
 @push('scripts')
 <script>
 'use strict';
+
 /* ═══════════════════════════════════════════
    DATA PROYEK (dari Blade → JS)
 ═══════════════════════════════════════════ */
@@ -235,7 +232,7 @@ function _fmtDateLong(s) {
 }
 
 /* ═══════════════════════════════════════════════════════════════
-   _calcStats — IDENTIK DENGAN MASTER DATA PROJECT
+   _calcStats
    - Draft DIKELUARKAN dari semua perhitungan
    - Done + Approved = status_progress "done" DAN status_akhir "approved"
    - Persentase = weight(done+approved) / weight(total non-draft) × 100
@@ -243,36 +240,28 @@ function _fmtDateLong(s) {
 function _calcStats() {
     const nonDraftTasks = tasks.filter(t => t.status_progress !== 'draft');
     const W = t => (t.weight > 0 ? t.weight : 1);
-
     const tot  = nonDraftTasks.length;
     const done = nonDraftTasks.filter(t => t.status_progress === 'done').length;
     const prog = nonDraftTasks.filter(t => t.status_progress === 'In Progress').length;
     const todo = nonDraftTasks.filter(t => t.status_progress === 'To Do').length;
-
     const wDone = nonDraftTasks.filter(t => t.status_progress === 'done').reduce((s,t)=>s+W(t),0);
     const wProg = nonDraftTasks.filter(t => t.status_progress === 'In Progress').reduce((s,t)=>s+W(t),0);
     const wTodo = nonDraftTasks.filter(t => t.status_progress === 'To Do').reduce((s,t)=>s+W(t),0);
-
     const totalWeight = nonDraftTasks.reduce((s,t)=>s+W(t),0);
-
     const saApproved = nonDraftTasks.filter(t => t.status_akhir === 'approved').length;
     const saRevisi   = nonDraftTasks.filter(t => t.status_akhir === 'revisi').length;
     const saReview   = nonDraftTasks.filter(t => t.status_akhir === 'review').length;
     const saNull     = nonDraftTasks.filter(t => !t.status_akhir).length;
-
     const wSaApproved = nonDraftTasks.filter(t => t.status_akhir === 'approved').reduce((s,t)=>s+W(t),0);
     const wSaRevisi   = nonDraftTasks.filter(t => t.status_akhir === 'revisi').reduce((s,t)=>s+W(t),0);
     const wSaReview   = nonDraftTasks.filter(t => t.status_akhir === 'review').reduce((s,t)=>s+W(t),0);
-
     const appr = nonDraftTasks.filter(
         t => t.status_progress === 'done' && t.status_akhir === 'approved'
     ).length;
     const approvedWeight = nonDraftTasks
         .filter(t => t.status_progress === 'done' && t.status_akhir === 'approved')
         .reduce((s,t) => s + W(t), 0);
-
     const pct = totalWeight > 0 ? Math.round((approvedWeight / totalWeight) * 100) : 0;
-
     return {
         tot, done, prog, todo,
         wDone, wProg, wTodo, totalWeight,
@@ -283,7 +272,7 @@ function _calcStats() {
 }
 
 /* ═══════════════════════════════════════════
-   PDF BUILDER — struktur IDENTIK dengan _buildPdfForProject() di master data project
+   PDF BUILDER
 ═══════════════════════════════════════════ */
 function _buildPdfForTask() {
     const filteredTasks = tasks.filter(t => t.status_progress !== 'draft');
@@ -349,8 +338,6 @@ function _buildPdfForTask() {
 
     html += `<div class="pdf-section-header"><span>Statistik &amp; Distribusi Status</span></div>
     <div style="padding:16px 28px;background:white;border-bottom:1px solid #E5E7EB;">
-
-        <!-- 2 tabel berdampingan -->
         <div style="display:flex;gap:16px;margin-bottom:16px;">
             <div style="flex:1;">
                 <div style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:#1E2A3A;margin-bottom:5px;font-family:'Segoe UI',Arial,sans-serif;">Status Progress (Weight)</div>
@@ -397,8 +384,6 @@ function _buildPdfForTask() {
                 </table>
             </div>
         </div>
-
-        <!-- 2 pie chart berdampingan -->
         <div style="display:flex;gap:16px;align-items:flex-start;">
             <div style="flex:1;display:flex;flex-direction:column;align-items:center;">
                 <div style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:#6B7280;margin-bottom:6px;font-family:'Segoe UI',Arial,sans-serif;text-align:center;">Distribusi Status Progress</div>
@@ -411,8 +396,6 @@ function _buildPdfForTask() {
                 <div style="margin-top:8px;width:100%;font-family:'Segoe UI',Arial,sans-serif;">${legendPie2}</div>
             </div>
         </div>
-
-        <!-- Progress bar -->
         <div class="pdf-completion-block" style="margin-top:14px;">
             <div class="pdf-completion-label">Tingkat Penyelesaian Proyek (Done + Approved PM / Total)</div>
             <div class="pdf-completion-nums">${s.pct}% &mdash; ${s.appr} dari ${s.tot} task done &amp; disetujui PM (Weight: ${s.approvedWeight}/${s.totalWeight})</div>
@@ -487,7 +470,7 @@ function _buildPdfForTask() {
 }
 
 /* ═══════════════════════════════════════════
-   PIE CHART — identik dengan _drawPieDonut() di master data project
+   PIE CHART (Canvas)
 ═══════════════════════════════════════════ */
 function _drawPieDonut(canvasId, data, colorMap, total) {
     const canvas = document.getElementById(canvasId);
@@ -539,7 +522,7 @@ function _drawAllPieCharts() {
 }
 
 /* ═══════════════════════════════════════════
-   CSS PRINT — identik dengan master data project
+   CSS PRINT (digunakan oleh printPDF)
 ═══════════════════════════════════════════ */
 const PDF_PRINT_CSS = `
 *{box-sizing:border-box;margin:0;padding:0;}
@@ -619,23 +602,9 @@ body{font-family:'Georgia','Times New Roman',serif;background:#F3F4F6;padding:20
 }`;
 
 /* ═══════════════════════════════════════════
-   DROPDOWN TOGGLE
-═══════════════════════════════════════════ */
-function toggleExportMenu(e) {
-    e.stopPropagation();
-    const dd = document.getElementById('exportDropdown');
-    dd.style.display = dd.style.display === 'none' ? 'block' : 'none';
-}
-document.addEventListener('click', () => {
-    const dd = document.getElementById('exportDropdown');
-    if (dd) dd.style.display = 'none';
-});
-
-/* ═══════════════════════════════════════════
-   EXPORT PDF
+   EXPORT PDF — buka modal preview
 ═══════════════════════════════════════════ */
 function exportPDF() {
-    document.getElementById('exportDropdown').style.display = 'none';
     const content = _buildPdfForTask();
     document.getElementById('pdfPreviewToolbar').querySelector('h6').textContent =
         `📄 Preview Laporan Task — ${EXPORT_PROJEK.nama}`;
@@ -648,368 +617,41 @@ function closePdfPreview() {
     document.getElementById('pdfPreviewModal').classList.remove('open');
 }
 
+/* ═══════════════════════════════════════════
+   PRINT PDF — konversi canvas → img lalu buka window cetak
+═══════════════════════════════════════════ */
 function printPDF() {
     const canvas1 = document.getElementById('pdfPieChart');
     const canvas2 = document.getElementById('pdfPieChartSA');
     let content   = document.getElementById('pdfPreviewContent').innerHTML;
+
     if (canvas1) {
         const img1 = canvas1.toDataURL('image/png');
-        content = content.replace(/<canvas id="pdfPieChart"[^>]*><\/canvas>/, `<img src="${img1}" width="130" height="130" style="display:block;">`);
+        content = content.replace(
+            /<canvas id="pdfPieChart"[^>]*><\/canvas>/,
+            `<img src="${img1}" width="130" height="130" style="display:block;">`
+        );
     }
     if (canvas2) {
         const img2 = canvas2.toDataURL('image/png');
-        content = content.replace(/<canvas id="pdfPieChartSA"[^>]*><\/canvas>/, `<img src="${img2}" width="130" height="130" style="display:block;">`);
+        content = content.replace(
+            /<canvas id="pdfPieChartSA"[^>]*><\/canvas>/,
+            `<img src="${img2}" width="130" height="130" style="display:block;">`
+        );
     }
+
     const win = window.open('', '_blank', 'width=960,height=720');
-    win.document.write(`<!DOCTYPE html><html lang="id"><head><meta charset="utf-8"><title>Laporan Task — ${escHtml(EXPORT_PROJEK.nama)}</title><style>${PDF_PRINT_CSS}</style></head><body>${content}</body></html>`);
+    win.document.write(`<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="utf-8">
+    <title>Laporan Task — ${escHtml(EXPORT_PROJEK.nama)}</title>
+    <style>${PDF_PRINT_CSS}</style>
+</head>
+<body>${content}</body>
+</html>`);
     win.document.close();
     setTimeout(() => { win.focus(); win.print(); }, 700);
-}
-
-/* ═══════════════════════════════════════════════════════════════
-   EXPORT EXCEL — identik struktur dengan master data project
-   - Draft DIKELUARKAN dari semua perhitungan
-   - Done = status_progress "done" DAN status_akhir "approved"
-   - % = weight(done+approved) / weight(total non-draft) × 100
-═══════════════════════════════════════════════════════════════ */
-async function exportExcel() {
-    document.getElementById('exportDropdown').style.display = 'none';
-    showToast('Membuat file Excel...', 'saving', 'Export Excel', 0);
-
-    if (typeof ExcelJS === 'undefined') {
-        await new Promise((res, rej) => {
-            const sc  = document.createElement('script');
-            sc.src    = 'https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.3.0/exceljs.min.js';
-            sc.onload = res; sc.onerror = rej;
-            document.head.appendChild(sc);
-        });
-    }
-
-    const filteredTasks = tasks.filter(t => t.status_progress !== 'draft');
-    const wb  = new ExcelJS.Workbook();
-    wb.creator  = EXPORT_PROJEK.pembuat;
-    wb.company  = EXPORT_PROJEK.perusahaan;
-    wb.created  = new Date();
-    wb.modified = new Date();
-
-    const now     = new Date();
-    const s       = _calcStats();
-    const dateStr = now.toLocaleDateString('id-ID', { day:'2-digit', month:'long', year:'numeric' });
-    const perus   = EXPORT_PROJEK.perusahaan !== '—' ? EXPORT_PROJEK.perusahaan : EXPORT_PROJEK.pembuat;
-
-    /* ══ STYLE CONSTANTS ══ */
-    const FONT_BASE  = { name:'Times New Roman', size:12 };
-    const FONT_BOLD  = { name:'Times New Roman', size:12, bold:true };
-    const FONT_SM    = { name:'Times New Roman', size:11 };
-    const FONT_SM_B  = { name:'Times New Roman', size:11, bold:true };
-    const FONT_HDR   = { name:'Times New Roman', size:12, bold:true, color:{ argb:'FFFFFFFF' } };
-    const FONT_GREEN = { name:'Times New Roman', size:11, bold:true, color:{ argb:'FF166534' } };
-    const FONT_AMBER = { name:'Times New Roman', size:11, bold:true, color:{ argb:'FF92400E' } };
-    const FONT_BLUE  = { name:'Times New Roman', size:11, bold:true, color:{ argb:'FF1D4ED8' } };
-    const FONT_PURP  = { name:'Times New Roman', size:11, bold:true, color:{ argb:'FF5B21B6' } };
-    const FONT_GRAY  = { name:'Times New Roman', size:11, bold:true, color:{ argb:'FF6B7280' } };
-
-    const FILL_NAVY   = { type:'pattern', pattern:'solid', fgColor:{ argb:'FF1E2A3A' } };
-    const FILL_NAVY2  = { type:'pattern', pattern:'solid', fgColor:{ argb:'FF2D3F52' } };
-    const FILL_WHITE  = { type:'pattern', pattern:'solid', fgColor:{ argb:'FFFFFFFF' } };
-    const FILL_ALT    = { type:'pattern', pattern:'solid', fgColor:{ argb:'FFEEF2F7' } };
-    const FILL_GREEN  = { type:'pattern', pattern:'solid', fgColor:{ argb:'FFDCFCE7' } };
-    const FILL_AMBER  = { type:'pattern', pattern:'solid', fgColor:{ argb:'FFFEF3C7' } };
-    const FILL_BLUE   = { type:'pattern', pattern:'solid', fgColor:{ argb:'FFDBEAFE' } };
-    const FILL_PURP   = { type:'pattern', pattern:'solid', fgColor:{ argb:'FFEDE9FE' } };
-    const FILL_GRAY   = { type:'pattern', pattern:'solid', fgColor:{ argb:'FFF3F4F6' } };
-    const FILL_TOTAL  = { type:'pattern', pattern:'solid', fgColor:{ argb:'FFE2E8F0' } };
-
-    const BORDER_THIN = {
-        top:{ style:'thin', color:{ argb:'FFD1D5DB' } }, left:{ style:'thin', color:{ argb:'FFD1D5DB' } },
-        bottom:{ style:'thin', color:{ argb:'FFD1D5DB' } }, right:{ style:'thin', color:{ argb:'FFD1D5DB' } },
-    };
-    const BORDER_MED = {
-        top:{ style:'medium', color:{ argb:'FF9CA3AF' } }, left:{ style:'medium', color:{ argb:'FF9CA3AF' } },
-        bottom:{ style:'medium', color:{ argb:'FF9CA3AF' } }, right:{ style:'medium', color:{ argb:'FF9CA3AF' } },
-    };
-    const BORDER_HDR = {
-        top:{ style:'medium', color:{ argb:'FF1E2A3A' } }, left:{ style:'medium', color:{ argb:'FF1E2A3A' } },
-        bottom:{ style:'medium', color:{ argb:'FF1E2A3A' } }, right:{ style:'medium', color:{ argb:'FF1E2A3A' } },
-    };
-    const ALIGN_CC = { horizontal:'center', vertical:'middle' };
-    const ALIGN_LC = { horizontal:'left',   vertical:'middle' };
-    const ALIGN_RC = { horizontal:'right',  vertical:'middle' };
-    const ALIGN_LT = { horizontal:'left',   vertical:'top', wrapText:true };
-
-    function stl(cell, opts) {
-        if (opts.font)      cell.font      = opts.font;
-        if (opts.fill)      cell.fill      = opts.fill;
-        if (opts.border)    cell.border    = opts.border;
-        if (opts.alignment) cell.alignment = opts.alignment;
-        if (opts.numFmt)    cell.numFmt    = opts.numFmt;
-    }
-    function mergeWrite(sheet, r1, c1, r2, c2, value, opts) {
-        sheet.mergeCells(r1, c1, r2, c2);
-        const cell = sheet.getCell(r1, c1);
-        cell.value = value;
-        stl(cell, opts);
-    }
-    function xlTable(ws, startR, c1, items, totalVal, mode, titleText) {
-        ws.mergeCells(startR, c1, startR, c1+2);
-        const titleCell = ws.getCell(startR, c1);
-        titleCell.value = titleText;
-        stl(titleCell, { font:{ name:'Times New Roman', size:10, bold:true, color:{ argb:'FFFFFFFF' } }, fill:FILL_NAVY, alignment:ALIGN_CC, border:{ bottom:{ style:'thin', color:{ argb:'FF3B7DD8' } } } });
-        ws.getRow(startR).height = 20;
-        const hdrR = startR + 1;
-        ws.getRow(hdrR).height = 18;
-        const colLabel = mode === 'task' ? 'Jumlah Task' : 'Jumlah Weight';
-        [{ v:'Status', c:c1 }, { v:colLabel, c:c1+1 }, { v:'Persentase', c:c1+2 }].forEach(h => {
-            ws.getCell(hdrR, h.c).value = h.v;
-            stl(ws.getCell(hdrR, h.c), { font:FONT_HDR, fill:FILL_NAVY2, alignment:ALIGN_CC, border:BORDER_HDR });
-        });
-        items.forEach((item, i) => {
-            const r   = hdrR + 1 + i;
-            const val = mode === 'task' ? item.n : item.w;
-            const pct = totalVal > 0 ? Math.round((val/totalVal)*100) : 0;
-            ws.getRow(r).height = 20;
-            ws.getCell(r, c1).value = item.label;
-            stl(ws.getCell(r, c1), { font:item.font, fill:item.fill, alignment:ALIGN_LC, border:BORDER_THIN });
-            ws.getCell(r, c1+1).value = val;
-            stl(ws.getCell(r, c1+1), { font:{ ...item.font, size:12 }, fill:item.fill, alignment:ALIGN_CC, border:BORDER_THIN });
-            ws.getCell(r, c1+2).value = totalVal > 0 ? pct/100 : 0;
-            stl(ws.getCell(r, c1+2), { font:item.font, fill:item.fill, alignment:ALIGN_CC, border:BORDER_THIN, numFmt:'0%' });
-        });
-        const totR = hdrR + 1 + items.length;
-        ws.getRow(totR).height = 20;
-        ws.getCell(totR, c1).value = 'TOTAL';
-        stl(ws.getCell(totR, c1), { font:{ name:'Times New Roman', size:11, bold:true, color:{ argb:'FF1E2A3A' } }, fill:FILL_TOTAL, alignment:ALIGN_LC, border:BORDER_MED });
-        ws.getCell(totR, c1+1).value = totalVal;
-        stl(ws.getCell(totR, c1+1), { font:{ name:'Times New Roman', size:12, bold:true, color:{ argb:'FF1E2A3A' } }, fill:FILL_TOTAL, alignment:ALIGN_CC, border:BORDER_MED });
-        ws.getCell(totR, c1+2).value = 1;
-        stl(ws.getCell(totR, c1+2), { font:{ name:'Times New Roman', size:11, bold:true, color:{ argb:'FF1E2A3A' } }, fill:FILL_TOTAL, alignment:ALIGN_CC, border:BORDER_MED, numFmt:'0%' });
-        return totR;
-    }
-
-    /* ════ SHEET 1 — SAMPUL ════ */
-    const ws1 = wb.addWorksheet('Sampul & Ringkasan', {
-        properties:{ tabColor:{ argb:'FF1E2A3A' } }, views:[{ showGridLines:false }],
-    });
-    ws1.columns = [
-        { width:3 },{ width:28 },{ width:18 },{ width:14 },
-        { width:3 },{ width:28 },{ width:18 },{ width:14 },{ width:3 },
-    ];
-    ws1.getRow(1).height = 6; ws1.getRow(2).height = 6;
-    for (let c=1;c<=9;c++) {
-        ws1.getCell(1,c).fill = FILL_NAVY;
-        ws1.getCell(2,c).fill = { type:'pattern', pattern:'solid', fgColor:{ argb:'FF3B7DD8' } };
-    }
-    for (let r=3;r<=8;r++) for (let c=1;c<=9;c++) ws1.getCell(r,c).fill = FILL_NAVY;
-    ws1.getRow(3).height=10; ws1.getRow(4).height=40; ws1.getRow(5).height=22;
-    ws1.getRow(6).height=18; ws1.getRow(7).height=18; ws1.getRow(8).height=12;
-    mergeWrite(ws1,4,2,4,8,'LAPORAN MANAJEMEN TASK',{ font:{ name:'Times New Roman', size:20, bold:true, color:{ argb:'FFFFFFFF' } }, fill:FILL_NAVY, alignment:ALIGN_LC });
-    mergeWrite(ws1,5,2,5,8,EXPORT_PROJEK.nama,{ font:{ name:'Times New Roman', size:14, color:{ argb:'FF9CA3AF' } }, fill:FILL_NAVY, alignment:ALIGN_LC });
-    mergeWrite(ws1,6,2,6,4,perus,{ font:{ name:'Times New Roman', size:11, color:{ argb:'FFD1D5DB' } }, fill:FILL_NAVY, alignment:ALIGN_LC });
-    const docNum = `DOC-${EXPORT_PROJEK.id}-${now.getFullYear()}${String(now.getMonth()+1).padStart(2,'0')}`;
-    ws1.getCell(6,6).value = `No. Dokumen: ${docNum}`;
-    stl(ws1.getCell(6,6), { font:{ name:'Times New Roman', size:10, color:{ argb:'FF9CA3AF' }, italic:true }, fill:FILL_NAVY, alignment:ALIGN_RC });
-    ws1.getCell(7,2).value = `Diterbitkan: ${dateStr}`;
-    stl(ws1.getCell(7,2), { font:{ name:'Times New Roman', size:11, color:{ argb:'FFD1D5DB' } }, fill:FILL_NAVY, alignment:ALIGN_LC });
-    ws1.getCell(7,6).value = `PM: ${EXPORT_PROJEK.pm}`;
-    stl(ws1.getCell(7,6), { font:{ name:'Times New Roman', size:10, color:{ argb:'FF9CA3AF' } }, fill:FILL_NAVY, alignment:ALIGN_RC });
-    ws1.getRow(9).height = 8;
-    for (let c=1;c<=9;c++) ws1.getCell(9,c).fill = { type:'pattern', pattern:'solid', fgColor:{ argb:'FF3B7DD8' } };
-    ws1.getRow(10).height = 14;
-    ws1.getRow(11).height = 22;
-    mergeWrite(ws1,11,2,11,8,'▌  INFORMASI PROYEK',{
-        font:{ name:'Times New Roman', size:12, bold:true, color:{ argb:'FF1E2A3A' } },
-        fill:{ type:'pattern', pattern:'solid', fgColor:{ argb:'FFE2E8F0' } }, alignment:ALIGN_LC,
-        border:{ bottom:{ style:'medium', color:{ argb:'FF1E2A3A' } } },
-    });
-    const infoData = [
-        ['Project Manager',  EXPORT_PROJEK.pm,         'Tanggal Mulai',   EXPORT_PROJEK.mulai],
-        ['Perusahaan',       EXPORT_PROJEK.perusahaan, 'Target Selesai',  EXPORT_PROJEK.akhir],
-        ['Kategori',         EXPORT_PROJEK.kategori,   'Pembuat Sistem',  EXPORT_PROJEK.pembuat],
-        ['Deskripsi',        EXPORT_PROJEK.deskripsi || 'Tidak ada deskripsi.', '', ''],
-    ];
-    let infoRow = 12;
-    infoData.forEach((row, idx) => {
-        ws1.getRow(infoRow+idx).height = idx===3 ? 32 : 20;
-        const fillRow = idx%2===1 ? FILL_ALT : FILL_WHITE;
-        ws1.getCell(infoRow+idx,2).value = row[0];
-        stl(ws1.getCell(infoRow+idx,2), { font:FONT_SM_B, fill:fillRow, alignment:ALIGN_LC, border:BORDER_THIN });
-        ws1.getCell(infoRow+idx,3).value = row[1];
-        stl(ws1.getCell(infoRow+idx,3), { font:FONT_SM, fill:fillRow, alignment:ALIGN_LT, border:BORDER_THIN });
-        if (row[2]) {
-            ws1.getCell(infoRow+idx,6).value = row[2];
-            stl(ws1.getCell(infoRow+idx,6), { font:FONT_SM_B, fill:fillRow, alignment:ALIGN_LC, border:BORDER_THIN });
-            ws1.getCell(infoRow+idx,7).value = row[3];
-            stl(ws1.getCell(infoRow+idx,7), { font:FONT_SM, fill:fillRow, alignment:ALIGN_LC, border:BORDER_THIN });
-        } else {
-            ws1.mergeCells(infoRow+idx,3,infoRow+idx,8);
-            stl(ws1.getCell(infoRow+idx,3), { font:FONT_SM, fill:fillRow, alignment:{ horizontal:'left', vertical:'top', wrapText:true }, border:BORDER_THIN });
-        }
-    });
-    ws1.getRow(17).height = 14; ws1.getRow(18).height = 22;
-    mergeWrite(ws1,18,2,18,8,'▌  STATISTIK TASK',{
-        font:{ name:'Times New Roman', size:12, bold:true, color:{ argb:'FF1E2A3A' } },
-        fill:{ type:'pattern', pattern:'solid', fgColor:{ argb:'FFE2E8F0' } }, alignment:ALIGN_LC,
-        border:{ bottom:{ style:'medium', color:{ argb:'FF1E2A3A' } } },
-    });
-    const spItems = [
-        { label:'Selesai (Done)',    n:s.done, w:s.wDone, fill:FILL_GREEN, font:FONT_GREEN },
-        { label:'Proses Pengerjaan', n:s.prog, w:s.wProg, fill:FILL_AMBER, font:FONT_AMBER },
-        { label:'Belum Pengerjaan',  n:s.todo, w:s.wTodo, fill:FILL_BLUE,  font:FONT_BLUE  },
-    ];
-    const wNull2 = Math.max(0, s.totalWeight - (s.wSaApproved + s.wSaRevisi + s.wSaReview));
-    const saItemsXL = [
-        { label:'Disetujui (Approved)', n:s.saApproved, w:s.wSaApproved, fill:FILL_GREEN, font:FONT_GREEN },
-        { label:'Review PM',            n:s.saReview,   w:s.wSaReview,   fill:FILL_PURP,  font:FONT_PURP  },
-        { label:'Revisi PM',            n:s.saRevisi,   w:s.wSaRevisi,   fill:FILL_AMBER, font:FONT_AMBER  },
-        { label:'Belum Dinilai',        n:s.saNull,     w:wNull2,        fill:FILL_GRAY,  font:FONT_GRAY  },
-    ];
-    const T1_END = xlTable(ws1, 19, 2, spItems,     s.tot,         'task',   '📊 Status Progress — Jumlah Task');
-    const T2_END = xlTable(ws1, T1_END+2, 2, spItems, s.totalWeight,'weight','⚖️ Status Progress — Jumlah Weight');
-    const T3_END = xlTable(ws1, 19, 6, saItemsXL,  s.tot,         'task',   '📊 Status Penilaian PM — Jumlah Task');
-    const T4_END = xlTable(ws1, T3_END+2, 6, saItemsXL, s.totalWeight,'weight','⚖️ Status Penilaian PM — Jumlah Weight');
-    const barRowNum = Math.max(T2_END, T4_END) + 2;
-    ws1.getRow(barRowNum).height = 28;
-    const barFill  = '█'.repeat(Math.round(s.pct/5));
-    const barEmpty = '░'.repeat(20-Math.round(s.pct/5));
-    ws1.mergeCells(barRowNum,2,barRowNum,8);
-    stl(ws1.getCell(barRowNum,2), {
-        font:{ name:'Courier New', size:10, bold:true, color:{ argb:'FF1E2A3A' } },
-        fill:{ type:'pattern', pattern:'solid', fgColor:{ argb:'FFE2E8F0' } }, alignment:ALIGN_CC,
-        border:{ top:{ style:'medium', color:{ argb:'FF1E2A3A' } }, bottom:{ style:'medium', color:{ argb:'FF1E2A3A' } } },
-    });
-    ws1.getCell(barRowNum,2).value = `PENYELESAIAN PROYEK   ${barFill}${barEmpty}   ${s.pct}%  (${s.appr} dari ${s.tot} task done & approved PM · Weight: ${s.approvedWeight}/${s.totalWeight})`;
-    const footR1=barRowNum+2, footR2=barRowNum+3;
-    ws1.getRow(footR1).height=6; ws1.getRow(footR2).height=6;
-    for (let c=1;c<=9;c++) {
-        ws1.getCell(footR1,c).fill = { type:'pattern', pattern:'solid', fgColor:{ argb:'FF3B7DD8' } };
-        ws1.getCell(footR2,c).fill = FILL_NAVY;
-    }
-
-    /* ════ SHEET 2 — DAFTAR TASK ════ */
-    const ws2 = wb.addWorksheet('Daftar Task', {
-        properties:{ tabColor:{ argb:'FF3B7DD8' } },
-        views:[{ showGridLines:false, state:'frozen', ySplit:5 }],
-    });
-    ws2.columns = [
-        { width:5 },{ width:32 },{ width:36 },{ width:22 },{ width:18 },
-        { width:18 },{ width:16 },{ width:15 },{ width:15 },{ width:15 },
-        { width:22 },{ width:10 },{ width:52 },
-    ];
-    ws2.getRow(1).height=8; ws2.getRow(2).height=8;
-    for (let c=1;c<=13;c++) {
-        ws2.getCell(1,c).fill = FILL_NAVY;
-        ws2.getCell(2,c).fill = { type:'pattern', pattern:'solid', fgColor:{ argb:'FF3B7DD8' } };
-    }
-    ws2.getRow(3).height = 32;
-    mergeWrite(ws2,3,1,3,13,
-        `DAFTAR TASK PROYEK  ·  ${EXPORT_PROJEK.nama}  ·  ${filteredTasks.length} task`,
-        { font:{ name:'Times New Roman', size:14, bold:true, color:{ argb:'FFFFFFFF' } }, fill:FILL_NAVY, alignment:ALIGN_LC }
-    );
-    ws2.getRow(4).height = 18;
-    [
-        { c1:1,  c2:5,  label:'IDENTITAS TASK',    fill:{ type:'pattern', pattern:'solid', fgColor:{ argb:'FF2D3F52' } } },
-        { c1:6,  c2:7,  label:'STATUS',             fill:{ type:'pattern', pattern:'solid', fgColor:{ argb:'FF374151' } } },
-        { c1:8,  c2:11, label:'WAKTU & KETEPATAN',  fill:{ type:'pattern', pattern:'solid', fgColor:{ argb:'FF2D3F52' } } },
-        { c1:12, c2:13, label:'LAPORAN HASIL',       fill:{ type:'pattern', pattern:'solid', fgColor:{ argb:'FF374151' } } },
-    ].forEach(({ c1, c2, label, fill }) => {
-        ws2.mergeCells(4,c1,4,c2);
-        const cell = ws2.getCell(4,c1); cell.value = label;
-        stl(cell, { font:{ name:'Times New Roman', size:10, bold:true, color:{ argb:'FFADB5C0' } }, fill, alignment:ALIGN_CC });
-    });
-    ws2.getRow(5).height = 26;
-    ['No','Judul Task','Deskripsi','Penanggung Jawab','Jabatan',
-     'Status Progress','Status PM','Tgl. Mulai','Tenggat Waktu','Tgl. Selesai','Ketepatan Waktu',
-     'Jml Hasil','URL Laporan Hasil'
-    ].forEach((h, i) => {
-        const c = ws2.getCell(5, i+1); c.value = h;
-        stl(c, { font:FONT_HDR, fill:FILL_NAVY, alignment:ALIGN_CC, border:BORDER_HDR });
-    });
-    const SP_EXCEL = {
-        'done':        { fill:FILL_GREEN, font:FONT_GREEN },
-        'In Progress': { fill:FILL_AMBER, font:FONT_AMBER },
-        'To Do':       { fill:FILL_BLUE,  font:FONT_BLUE  },
-    };
-    const SA_EXCEL = {
-        'review':  { fill:FILL_PURP,  font:FONT_PURP  },
-        'revisi':  { fill:FILL_AMBER, font:FONT_AMBER },
-        'approved':{ fill:FILL_GREEN, font:FONT_GREEN },
-    };
-    function calcTlSimple(t) {
-        const today = new Date(); today.setHours(0,0,0,0);
-        const end   = t.tenggat_waktu ? new Date(t.tenggat_waktu+'T00:00:00') : null;
-        const sp    = t.status_progress;
-        if (sp === 'done') {
-            if (!end) return 'early';
-            if (t.tanggal_selesai) { const sel=new Date(t.tanggal_selesai+'T00:00:00'); if (+sel<+end) return 'early'; if (+sel===+end) return 'ontime'; return 'late'; }
-            return end >= today ? 'early' : 'late';
-        }
-        if (sp === 'In Progress') { if (!end) return 'inprogress'; if (end<today) return 'overdue'; if (Math.ceil((end-today)/86400000)<=3) return 'upcoming'; return 'inprogress'; }
-        if (sp === 'To Do')       { if (!end) return 'todo'; if (end<today) return 'todo_overdue'; if (Math.ceil((end-today)/86400000)<=3) return 'todo_upcoming'; return 'todo'; }
-        return 'pending';
-    }
-    const TL_LBL = { early:'Selesai Lebih Awal', ontime:'Tepat Waktu', late:'Terlambat', inprogress:'Proses Pengerjaan', overdue:'Melewati Deadline', upcoming:'Deadline Dekat', todo:'Segera Dikerjakan', todo_overdue:'Lewat Deadline Belum Mulai', todo_upcoming:'Segera Dikerjakan', pending:'—' };
-    filteredTasks.forEach((t, i) => {
-        const r      = 6+i;
-        const fillRow = i%2===1 ? FILL_ALT : FILL_WHITE;
-        const member = TIM_LIST.find(m => m.id_tim === t.id_tim);
-        const tlSts  = calcTlSimple(t);
-        const hasilF = (t.foto||[]).filter(f => f.tipe === 'hasil');
-        const spSty  = SP_EXCEL[t.status_progress] || { fill:fillRow, font:FONT_BASE };
-        const saSty  = t.status_akhir ? (SA_EXCEL[t.status_akhir] || { fill:fillRow, font:FONT_BASE }) : null;
-        ws2.getRow(r).height = 22;
-        ws2.getCell(r,1).value = i+1;
-        stl(ws2.getCell(r,1), { font:FONT_BASE, fill:fillRow, alignment:ALIGN_CC, border:BORDER_THIN });
-        ws2.getCell(r,2).value = t.judul_tugas||'—';
-        stl(ws2.getCell(r,2), { font:FONT_BOLD, fill:fillRow, alignment:ALIGN_LT, border:BORDER_THIN });
-        ws2.getCell(r,3).value = (t.deskripsi_tugas||'—').substring(0,300);
-        stl(ws2.getCell(r,3), { font:FONT_SM, fill:fillRow, alignment:{ horizontal:'left', vertical:'top', wrapText:true }, border:BORDER_THIN });
-        ws2.getCell(r,4).value = member?.nama||'—';
-        stl(ws2.getCell(r,4), { font:FONT_BASE, fill:fillRow, alignment:ALIGN_LC, border:BORDER_THIN });
-        ws2.getCell(r,5).value = member?.jabatan||'—';
-        stl(ws2.getCell(r,5), { font:FONT_SM, fill:fillRow, alignment:ALIGN_LC, border:BORDER_THIN });
-        ws2.getCell(r,6).value = SP_LABEL_PDF[t.status_progress]||t.status_progress||'—';
-        stl(ws2.getCell(r,6), { font:spSty.font, fill:spSty.fill, alignment:ALIGN_CC, border:BORDER_THIN });
-        ws2.getCell(r,7).value = t.status_akhir ? (SA_LABEL_PDF[t.status_akhir]||t.status_akhir) : '—';
-        stl(ws2.getCell(r,7), { font:saSty?saSty.font:{ name:'Times New Roman', size:11, color:{ argb:'FF9CA3AF' } }, fill:saSty?saSty.fill:fillRow, alignment:ALIGN_CC, border:BORDER_THIN });
-        ws2.getCell(r,8).value  = _fmtDateLong(t.tanggal_mulai)   || '—';
-        ws2.getCell(r,9).value  = _fmtDateLong(t.tenggat_waktu)   || '—';
-        ws2.getCell(r,10).value = _fmtDateLong(t.tanggal_selesai) || '—';
-        [8,9,10].forEach(c => stl(ws2.getCell(r,c), { font:FONT_SM, fill:fillRow, alignment:ALIGN_CC, border:BORDER_THIN }));
-        ws2.getCell(r,11).value = TL_LBL[tlSts]||'—';
-        let tlFill=fillRow, tlFont=FONT_SM;
-        if (tlSts==='early'||tlSts==='ontime')                              { tlFill=FILL_GREEN; tlFont=FONT_GREEN; }
-        else if (tlSts==='late'||tlSts==='overdue'||tlSts==='todo_overdue') { tlFill={ type:'pattern', pattern:'solid', fgColor:{ argb:'FFFEE2E2' } }; tlFont={ name:'Times New Roman', size:11, bold:true, color:{ argb:'FF991B1B' } }; }
-        else if (tlSts==='upcoming'||tlSts==='todo_upcoming')               { tlFill=FILL_AMBER; tlFont=FONT_AMBER; }
-        stl(ws2.getCell(r,11), { font:tlFont, fill:tlFill, alignment:ALIGN_CC, border:BORDER_THIN });
-        ws2.getCell(r,12).value = hasilF.length;
-        stl(ws2.getCell(r,12), { font:hasilF.length>0?FONT_GREEN:{ name:'Times New Roman', size:11, color:{ argb:'FF9CA3AF' } }, fill:hasilF.length>0?FILL_GREEN:fillRow, alignment:ALIGN_CC, border:BORDER_THIN });
-        ws2.getCell(r,13).value = hasilF.map(f => f.url).join('\n')||'—';
-        stl(ws2.getCell(r,13), { font:{ name:'Times New Roman', size:10, color:{ argb:'FF1D4ED8' } }, fill:fillRow, alignment:{ horizontal:'left', vertical:'top', wrapText:true }, border:BORDER_THIN });
-    });
-    const taskTotRow = 6 + filteredTasks.length;
-    ws2.getRow(taskTotRow).height = 26;
-    mergeWrite(ws2,taskTotRow,1,taskTotRow,5,
-        `TOTAL: ${filteredTasks.length} TASK  |  Selesai: ${s.done}  |  Proses: ${s.prog}  |  Belum: ${s.todo}  |  Done+Approved: ${s.appr}`,
-        { font:FONT_HDR, fill:FILL_NAVY, alignment:ALIGN_LC, border:BORDER_HDR }
-    );
-    ws2.getCell(taskTotRow,6).value  = `${s.done} selesai`;
-    ws2.getCell(taskTotRow,7).value  = `${s.appr} disetujui`;
-    ws2.getCell(taskTotRow,11).value = `${s.pct}% (done+approved)`;
-    ws2.getCell(taskTotRow,12).value = filteredTasks.reduce((a,t)=>a+(t.foto||[]).filter(f=>f.tipe==='hasil').length,0);
-    [6,7,11,12].forEach(c => stl(ws2.getCell(taskTotRow,c), { font:FONT_HDR, fill:FILL_NAVY, alignment:ALIGN_CC, border:BORDER_HDR }));
-    [8,9,10,13].forEach(c => { ws2.getCell(taskTotRow,c).fill = FILL_NAVY; });
-
-    /* ── Download ── */
-    const filename = `laporan-task-${EXPORT_PROJEK.id}-${now.toISOString().split('T')[0]}.xlsx`;
-    const buffer   = await wb.xlsx.writeBuffer();
-    const blob     = new Blob([buffer], { type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
-    const url      = URL.createObjectURL(blob);
-    const a        = document.createElement('a');
-    a.href=url; a.download=filename;
-    document.body.appendChild(a); a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
-    showToast(`"${filename}" berhasil diunduh.`, 'success', '⬇ Excel Selesai', 3500);
 }
 </script>
 @endpush

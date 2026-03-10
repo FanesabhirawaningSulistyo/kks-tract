@@ -4,6 +4,8 @@ use App\Http\Controllers\Auth\AuthenticatedSessionController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\JobRoleController;
 use App\Http\Controllers\KategoriProjectController;
+use App\Http\Controllers\MetodePembayaranController;
+use App\Http\Controllers\PembayaranProjekController;
 use App\Http\Controllers\PerusahaanController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\ProjekController;
@@ -142,6 +144,45 @@ Route::prefix('projek/{id_projek}/task')->name('task.')->middleware('auth')->gro
 });
 
 
+Route::prefix('pembayaran-projek')->name('pembayaran-projek.')->middleware(['auth'])->group(function () {
+
+    // ── Index & Store (resource standard) ──
+    Route::get('/',    [PembayaranProjekController::class, 'index'])->name('index');
+    Route::post('/',   [PembayaranProjekController::class, 'store'])->name('store');
+
+    // ── Detail per projek ──
+    Route::get('/{id_projek}/detail',  [PembayaranProjekController::class, 'show'])->name('show');
+    Route::get('/{id_projek}/riwayat', [PembayaranProjekController::class, 'getRiwayat'])->name('riwayat');
+
+    // ── Cetak ──
+    Route::get('/{id_projek}/cetak-riwayat', [PembayaranProjekController::class, 'cetakRiwayat'])->name('cetak-riwayat');
+    Route::get('/{id_pembayaran}/struk',      [PembayaranProjekController::class, 'cetakStruk'])->name('struk');
+
+    // ── Upload bukti per baris (✅ WAJIB ADA — ini yang 404) ──
+    Route::post('/{id_pembayaran}/bukti',  [PembayaranProjekController::class, 'uploadBukti'])->name('upload-bukti');
+
+    // ── Update status ──
+    Route::patch('/{id_pembayaran}/status', [PembayaranProjekController::class, 'updateStatus'])->name('update-status');
+});
+Route::prefix('pembayaran-projek')
+    ->name('pembayaran-projek.')
+    ->controller(PembayaranProjekController::class)
+    ->group(function () {
+        Route::get('/',                       'index')->name('index');
+        Route::post('/',                      'store')->name('store');
+        Route::get('/{id_projek}/detail',     'show')->name('show');        // ← BARU: halaman detail
+        Route::get('/{id_projek}/riwayat',    'getRiwayat')->name('riwayat');
+        Route::patch('/{id_pembayaran}/status', 'updateStatus')->name('updateStatus');
+        Route::get('/{id_pembayaran}/struk',  'cetakStruk')->name('cetakStruk');
+        Route::get('/{id_projek}/cetak-riwayat', 'cetakRiwayat')->name('cetakRiwayat');
+    });
+
+Route::prefix('master-data-metode-pembayaran')->name('master-data-metode-pembayaran.')->middleware('auth')->group(function () {
+    Route::get('/', [MetodePembayaranController::class, 'index'])->name('index');
+    Route::post('/', [MetodePembayaranController::class, 'store'])->name('store');
+    Route::put('/{id}', [MetodePembayaranController::class, 'update'])->name('update');
+    Route::delete('/{id}', [MetodePembayaranController::class, 'destroy'])->name('destroy');
+});
 // Redirect root ke dashboard jika sudah login, atau ke login jika belum
 Route::get('/', function () {
     return Auth::check() ? redirect()->route('dashboard') : redirect()->route('login');

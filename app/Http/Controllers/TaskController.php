@@ -27,12 +27,39 @@ class TaskController extends Controller
 
     public function index(Request $request, $id_projek)
     {
+        /** @var User $user */
+        $user   = Auth::user();
         $projek = Projek::with([
             'perusahaan',
             'kategoriProjek',
             'pembuat',
             'tim.user',
         ])->findOrFail($id_projek);
+
+        // ─────────────────────────────────────────────
+        // ROLE-BASED ACCESS CHECK
+        // ─────────────────────────────────────────────
+        if ($user->isKaryawan()) {
+            // Karyawan hanya boleh akses project yang dia tergabung di tim
+            $tergabung = ProjekTim::where('id_projek', $id_projek)
+                ->where('id_user', $user->id_user)
+                ->exists();
+            if (!$tergabung) {
+                abort(403, 'Anda tidak tergabung dalam project ini.');
+            }
+        } elseif ($user->isKlien()) {
+            // Klien hanya boleh akses project dari perusahaannya
+            $perusahaan = $user->perusahaan;
+            if (!$perusahaan || $projek->id_perusahaan !== $perusahaan->id_perusahaan) {
+                abort(403, 'Anda tidak memiliki akses ke project ini.');
+            }
+        } elseif ($user->isPM()) {
+            // PM hanya boleh akses project yang dia buat
+            if ($projek->dibuat_oleh !== $user->id_user) {
+                abort(403, 'Anda tidak memiliki akses ke project ini.');
+            }
+        }
+        // Admin: boleh akses semua project, tidak ada pengecekan tambahan
 
         $timProject = ProjekTim::with('user.jobRole')
             ->where('id_projek', $id_projek)
@@ -87,7 +114,6 @@ class TaskController extends Controller
 
         $sudahAda = ProjekTim::where('id_projek', $id_projek)
             ->whereIn('id_user', $request->id_user)->pluck('id_user')->toArray();
-
         $userBaru = array_diff($request->id_user, $sudahAda);
 
         foreach ($userBaru as $id_user) {
@@ -95,7 +121,6 @@ class TaskController extends Controller
         }
 
         $jumlah = count($userBaru);
-
         if ($jumlah === 0) {
             return response()->json([
                 'success' => false,
@@ -115,7 +140,6 @@ class TaskController extends Controller
         $tim = ProjekTim::where('id_tim', $id_tim)->where('id_projek', $id_projek)->firstOrFail();
 
         $tugasAktif = Tugas::where('id_tim', $id_tim)->whereNotIn('status_progress', ['done'])->count();
-
         if ($tugasAktif > 0) {
             return response()->json([
                 'success' => false,
@@ -124,7 +148,6 @@ class TaskController extends Controller
         }
 
         $tim->delete();
-
         return response()->json(['success' => true, 'message' => 'Anggota berhasil dikeluarkan dari tim.']);
     }
 
@@ -142,6 +165,41 @@ class TaskController extends Controller
 
         return response()->json(['success' => true, 'data' => $tasks]);
     }
+
+    /**
+     * GET /projek/{id}/task/tim-data
+     * Digunakan oleh modal Kelola Tim untuk refresh tanpa reload halaman.
+     */
+    public function getTimData($id_projek)
+    {
+        $timProject = ProjekTim::with('user.jobRole')
+            ->where('id_projek', $id_projek)
+            ->get();
+
+        $userTersedia = User::with('jobRole')
+            ->whereNotIn('id_user', $timProject->pluck('id_user'))
+            ->where('role', 'karyawan')
+            ->orderBy('nama')
+            ->get();
+
+        $tim = $timProject->map(fn($t) => [
+            'id_tim'  => $t->id_tim,
+            'id_user' => $t->id_user,
+            'nama'    => optional($t->user)->nama    ?? '—',
+            'email'   => optional($t->user)->email   ?? '',
+            'jabatan' => optional(optional($t->user)->jobRole)->nama_job_role ?? null,
+        ])->values()->all();
+
+        $users = $userTersedia->map(fn($u) => [
+            'id_user' => $u->id_user,
+            'nama'    => $u->nama    ?? '—',
+            'email'   => $u->email   ?? '',
+            'jabatan' => optional($u->jobRole)->nama_job_role ?? null,
+        ])->values()->all();
+
+        return response()->json(['success' => true, 'tim' => $tim, 'users' => $users]);
+    }
+
 
     public function storeTask(Request $request, $id_projek)
     {
@@ -164,9 +222,7 @@ class TaskController extends Controller
 
         DB::beginTransaction();
         try {
-            $weight = self::WEIGHT_MAP[$request->level] ?? 1;
-
-            // Jika langsung dibuat dengan status done, set tanggal_selesai hari ini
+            $weight         = self::WEIGHT_MAP[$request->level] ?? 1;
             $tanggalSelesai = ($request->status_progress === 'done') ? now()->toDateString() : null;
 
             $task = Tugas::create([
@@ -218,18 +274,21 @@ class TaskController extends Controller
         }
 
         $data = $request->only([
-            'judul_tugas', 'deskripsi_tugas', 'id_tim', 'level',
-            'status_progress', 'status_akhir', 'tenggat_waktu', 'tanggal_mulai',
+            'judul_tugas',
+            'deskripsi_tugas',
+            'id_tim',
+            'level',
+            'status_progress',
+            'status_akhir',
+            'tenggat_waktu',
+            'tanggal_mulai',
         ]);
 
-        // Normalise status_akhir: string kosong → null
         if (array_key_exists('status_akhir', $data)) {
             $data['status_akhir'] = $data['status_akhir'] ?: null;
         }
 
-        // ══════════════════════════════════════════
-        // ATURAN: Task Approved TIDAK boleh mundur status
-        // ══════════════════════════════════════════
+        // Task Approved TIDAK boleh mundur status
         if (
             isset($data['status_progress']) &&
             $task->status_akhir === 'approved' &&
@@ -242,25 +301,15 @@ class TaskController extends Controller
             ], 422);
         }
 
-        // ══════════════════════════════════════════
         // AUTO-SET tanggal_selesai
-        // ══════════════════════════════════════════
         if (isset($data['status_progress'])) {
-            $wasNotDone  = $task->status_progress !== 'done';
-            $nowDone     = $data['status_progress'] === 'done';
-            $wasNotDone2 = $task->status_progress === 'done';
-            $nowNotDone  = $data['status_progress'] !== 'done';
-
-            if ($wasNotDone && $nowDone) {
-                // Task baru selesai → catat tanggal hari ini
+            if ($task->status_progress !== 'done' && $data['status_progress'] === 'done') {
                 $data['tanggal_selesai'] = now()->toDateString();
-            } elseif ($wasNotDone2 && $nowNotDone) {
-                // Task dibuka kembali dari done → hapus tanggal selesai
+            } elseif ($task->status_progress === 'done' && $data['status_progress'] !== 'done') {
                 $data['tanggal_selesai'] = null;
             }
         }
 
-        // Auto-recalculate weight when level changes
         if (isset($data['level'])) {
             $data['weight'] = self::WEIGHT_MAP[$data['level']] ?? 1;
         }
@@ -275,19 +324,15 @@ class TaskController extends Controller
         ]);
     }
 
-    /**
-     * PATCH /projek/{id}/task/{id}/status-akhir
-     */
     public function updateStatusAkhir(Request $request, $id_projek, $id_tugas)
     {
         $request->validate([
             'status_akhir' => 'nullable|in:review,revisi,approved',
         ]);
 
-        $task = Tugas::where('id_tugas', $id_tugas)->where('id_projek', $id_projek)->firstOrFail();
-
-        // Jika di-set approved, pastikan task sudah done
+        $task  = Tugas::where('id_tugas', $id_tugas)->where('id_projek', $id_projek)->firstOrFail();
         $newSA = $request->status_akhir ?: null;
+
         if ($newSA === 'approved' && $task->status_progress !== 'done') {
             return response()->json([
                 'success' => false,
@@ -308,7 +353,6 @@ class TaskController extends Controller
     {
         $task = Tugas::where('id_tugas', $id_tugas)->where('id_projek', $id_projek)->firstOrFail();
 
-        // Tidak boleh hapus task yang sudah approved
         if ($task->status_akhir === 'approved') {
             return response()->json([
                 'success' => false,
@@ -324,7 +368,6 @@ class TaskController extends Controller
             }
             $task->delete();
             DB::commit();
-
             return response()->json(['success' => true, 'message' => 'Task berhasil dihapus.']);
         } catch (\Exception $e) {
             DB::rollBack();
@@ -341,7 +384,9 @@ class TaskController extends Controller
         $request->validate([
             'foto'   => 'required|array|min:1',
             'foto.*' => [
-                'required', 'file', 'max:10240',
+                'required',
+                'file',
+                'max:10240',
                 function ($attribute, $value, $fail) {
                     $allowed = ['jpg', 'jpeg', 'png', 'webp', 'gif', 'pdf', 'doc', 'docx', 'xls', 'xlsx'];
                     if (!in_array(strtolower($value->getClientOriginalExtension()), $allowed)) {
@@ -352,9 +397,9 @@ class TaskController extends Controller
             'tipe' => 'required|in:brief,hasil',
         ]);
 
-        $task = Tugas::where('id_tugas', $id_tugas)->where('id_projek', $id_projek)->firstOrFail();
-
+        $task     = Tugas::where('id_tugas', $id_tugas)->where('id_projek', $id_projek)->firstOrFail();
         $uploaded = [];
+
         foreach ($request->file('foto') as $file) {
             $path = $file->store('tugas-foto', 'public');
             $foto = TugasFoto::create([
@@ -382,8 +427,42 @@ class TaskController extends Controller
         $foto = TugasFoto::where('id_tugas_foto', $id_foto)->where('id_tugas', $id_tugas)->firstOrFail();
         Storage::disk('public')->delete($foto->nama_file);
         $foto->delete();
-
         return response()->json(['success' => true, 'message' => 'File berhasil dihapus.']);
+    }
+
+
+    /**
+     * GET /projek/{id}/tim-json
+     * Untuk refresh list tim & user tersedia via AJAX tanpa reload halaman
+     */
+    public function getTimJson($id_projek)
+    {
+        $tim = ProjekTim::with('user.jobRole')
+            ->where('id_projek', $id_projek)
+            ->get()
+            ->map(fn($t) => [
+                'id_tim'  => $t->id_tim,
+                'id_user' => $t->id_user,
+                'nama'    => optional($t->user)->nama ?? '—',
+                'jabatan' => optional(optional($t->user)->jobRole)->nama_job_role ?? 'Karyawan',
+            ]);
+
+        $userTersedia = User::with('jobRole')
+            ->whereNotIn('id_user', $tim->pluck('id_user'))
+            ->where('role', 'karyawan')
+            ->orderBy('nama')
+            ->get()
+            ->map(fn($u) => [
+                'id_user' => $u->id_user,
+                'nama'    => $u->nama,
+                'jabatan' => optional($u->jobRole)->nama_job_role ?? 'Karyawan',
+            ]);
+
+        return response()->json([
+            'success'       => true,
+            'tim'           => $tim,
+            'user_tersedia' => $userTersedia,
+        ]);
     }
 
     // ══════════════════════════════════════════════

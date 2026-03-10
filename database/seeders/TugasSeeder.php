@@ -13,15 +13,22 @@ class TugasSeeder extends Seeder
         $now = now();
         $totalInserted = 0;
 
-        $projekList = DB::table('projek')->pluck('id_projek');
+        // Ambil projek beserta tanggal mulai
+        $projekList = DB::table('projek')
+            ->select('id_projek', 'tanggal_mulai')
+            ->get();
 
         if ($projekList->isEmpty()) {
             $this->command->error('Tidak ada projek ditemukan.');
             return;
         }
 
-        foreach ($projekList as $idProjek) {
+        foreach ($projekList as $projek) {
 
+            $idProjek = $projek->id_projek;
+            $startProject = Carbon::parse($projek->tanggal_mulai);
+
+            // Ambil anggota tim projek
             $timMembers = DB::table('projek_tim')
                 ->where('id_projek', $idProjek)
                 ->pluck('id_tim')
@@ -31,21 +38,24 @@ class TugasSeeder extends Seeder
                 continue;
             }
 
-            $jumlahTask = rand(5, 7);
+            // 4–10 task per proyek
+            $jumlahTask = rand(4, 10);
 
             for ($i = 1; $i <= $jumlahTask; $i++) {
 
                 $idTim = $timMembers[array_rand($timMembers)];
 
+                // Level task
                 $levelList = ['mudah', 'medium', 'susah'];
                 $level = $levelList[array_rand($levelList)];
 
                 $weightMap = [
-                    'mudah'  => 1,
+                    'mudah' => 1,
                     'medium' => 2,
-                    'susah'  => 3,
+                    'susah' => 3
                 ];
 
+                // Variasi status progress
                 $statusProgressList = ['draft', 'To Do', 'In Progress', 'done'];
                 $statusProgress = $statusProgressList[array_rand($statusProgressList)];
 
@@ -61,42 +71,27 @@ class TugasSeeder extends Seeder
                 }
 
                 /*
-                 * ATURAN BARU:
-                 * - Tahun 2026
-                 * - Bulan hanya Januari (1) atau Februari (2)
-                 * - Tanggal mulai 7–14
-                 * - Durasi 5–12 hari
-                 * - Tidak boleh lewat Februari
-                 */
+                LOGIKA TANGGAL TASK
+                - tidak boleh sebelum project mulai
+                - task dibuat bertahap setelah project berjalan
+                */
 
-                // Bulan hanya Januari atau Februari
-                $bulan = rand(1, 2);
+                $tanggalMulai = (clone $startProject)
+                    ->addDays(rand(0, 20));
 
-                // Tanggal mulai antara 7–14
-                $tanggalMulai = Carbon::create(
-                    2026,
-                    $bulan,
-                    rand(7, 14)
-                );
-
-                // Durasi 5–12 hari
+                // durasi pengerjaan task
                 $durasi = rand(5, 12);
 
-                $tenggatWaktu = (clone $tanggalMulai)->addDays($durasi);
+                $tenggatWaktu = (clone $tanggalMulai)
+                    ->addDays($durasi);
 
-                // Jika melewati Februari, paksa ke 28 Februari 2026
-                $batasAkhirFeb = Carbon::create(2026, 2, 28);
-
-                if ($tenggatWaktu->gt($batasAkhirFeb)) {
-                    $tenggatWaktu = $batasAkhirFeb;
-                }
-
-                // tanggal_selesai hanya jika task selesai
+                // tanggal selesai hanya jika task done
                 $tanggalSelesai = null;
 
                 if ($statusProgress === 'done') {
-                    $tanggalSelesai = (clone $tenggatWaktu)
-                        ->subDays(rand(0, 2)); // selesai mendekati deadline
+
+                    $tanggalSelesai = (clone $tanggalMulai)
+                        ->addDays(rand(3, $durasi));
                 }
 
                 DB::table('tugas')->insert([

@@ -42,69 +42,144 @@
         </a>
     </div>
     <div class="menu-inner-shadow"></div>
+
+    @php
+        $userRole   = Auth::user()->role ?? null;
+        $isAdmin    = $userRole === 'admin';
+        $isPM       = $userRole === 'PM';        // ← huruf kecil, sesuai DB
+        $isKaryawan = $userRole === 'karyawan';  // ← huruf kecil
+        $isKlien    = $userRole === 'klien';     // ← huruf kecil
+    @endphp
+
     <ul class="menu-inner py-1">
-        <!-- Dashboard -->
+
+        {{-- ════════════════════════════════
+             UTAMA — semua role
+        ════════════════════════════════ --}}
+        <li class="menu-header small text-uppercase">
+            <span class="menu-header-text">Utama</span>
+        </li>
         <li class="menu-item {{ request()->routeIs('dashboard') ? 'active' : '' }}">
             <a href="{{ route('dashboard') }}" class="menu-link">
                 <i class="menu-icon tf-icons bx bx-home-circle"></i>
-                <div data-i18n="Analytics">Dashboard</div>
+                <div>Dashboard</div>
             </a>
         </li>
 
-                <!-- Layouts -->
-        <li class="menu-item">
+        {{-- ════════════════════════════════
+             MANAJEMEN — admin only
+        ════════════════════════════════ --}}
+        @if($isAdmin)
+        <li class="menu-header small text-uppercase">
+            <span class="menu-header-text">Manajemen</span>
+        </li>
+
+        {{-- Pengguna --}}
+        <li class="menu-item {{ request()->routeIs('master-data-jobrole.*', 'master-data-users.*') ? 'active open' : '' }}">
             <a href="javascript:void(0);" class="menu-link menu-toggle">
                 <i class="menu-icon tf-icons bx bx-group"></i>
-
-                <div data-i18n="users">Manajemen Pengguna</div>
+                <div>Pengguna</div>
             </a>
             <ul class="menu-sub">
-                <li class="menu-item">
-                  <a href="{{ route('master-data-jobrole.index') }}" class="menu-link">
-                        <div data-i18n="Without menu">Job Role</div>
+                <li class="menu-item {{ request()->routeIs('master-data-jobrole.*') ? 'active' : '' }}">
+                    <a href="{{ route('master-data-jobrole.index') }}" class="menu-link">
+                        <i class="menu-icon tf-icons bx bx-id-card"></i>
+                        <div>Job Role</div>
                     </a>
                 </li>
-                <li class="menu-item">
-                  <a href="{{ route('master-data-users.index') }}" class="menu-link">
-                        <div data-i18n="Without navbar">Master Data User</div>
+                <li class="menu-item {{ request()->routeIs('master-data-users.*') ? 'active' : '' }}">
+                    <a href="{{ route('master-data-users.index') }}" class="menu-link">
+                        <i class="menu-icon tf-icons bx bx-user"></i>
+                        <div>Data User</div>
                     </a>
                 </li>
             </ul>
         </li>
 
-
-        <!-- Master Data Perusahaan -->
+        {{-- Perusahaan --}}
         <li class="menu-item {{ request()->routeIs('master-data-perusahaan.*') ? 'active' : '' }}">
             <a href="{{ route('master-data-perusahaan.index') }}" class="menu-link">
                 <i class="menu-icon tf-icons bx bx-buildings"></i>
-                <div data-i18n="Analytics">Master Data Perusahaan</div>
+                <div>Perusahaan</div>
             </a>
+        </li>
+        @endif {{-- end isAdmin --}}
+
+        {{-- ════════════════════════════════
+             PROJEK
+             Admin    → Kategori + Data Projek
+             PM       → Kategori + Data Projek
+             Karyawan → Data Projek saja
+             Klien    → Data Projek saja
+        ════════════════════════════════ --}}
+        @if($isAdmin || $isPM || $isKaryawan || $isKlien)
+        <li class="menu-header small text-uppercase">
+            <span class="menu-header-text">Projek</span>
         </li>
 
-        <!-- Master Data Projek -->
-         <li class="menu-item {{ request()->routeIs('master-data-kategori-projek.*') ? 'active' : '' }}">
+        {{-- Kategori Projek: Admin & PM saja --}}
+        @if($isAdmin || $isPM)
+        <li class="menu-item {{ request()->routeIs('master-data-kategori-projek.*') ? 'active' : '' }}">
             <a href="{{ route('master-data-kategori-projek.index') }}" class="menu-link">
-                <i class="menu-icon tf-icons bx bx-briefcase"></i>
-                <div data-i18n="Analytics">Master Data Kategori Projek</div>
+                <i class="menu-icon tf-icons bx bx-purchase-tag-alt"></i>
+                <div>Kategori Projek</div>
             </a>
         </li>
+        @endif
+
+        {{-- Data Projek: semua role --}}
         <li class="menu-item {{ request()->routeIs('master-data-projek.*') ? 'active' : '' }}">
             <a href="{{ route('master-data-projek.index') }}" class="menu-link">
                 <i class="menu-icon tf-icons bx bx-briefcase"></i>
-                <div data-i18n="Analytics">Master Data Projek</div>
+                <div>Data Projek</div>
             </a>
         </li>
+        @endif {{-- end projek section --}}
 
-        <!-- Master Data Tugas -->
-<li class="menu-item {{ request()->routeIs('master-data-tugas.*') ? 'active' : '' }}">
-    <a href="{{ route('master-data-tugas.index') }}" class="menu-link">
-        <i class="menu-icon tf-icons bx bx-task"></i>
-        <div data-i18n="Analytics">Master Data Tugas</div>
-    </a>
-</li>
+        {{-- ════════════════════════════════
+             KEUANGAN
+             Admin → Metode Pembayaran + Pembayaran Projek
+             Klien → Pembayaran Projek saja
+        ════════════════════════════════ --}}
+        @if($isAdmin || $isKlien)
+        <li class="menu-header small text-uppercase">
+            <span class="menu-header-text">Keuangan</span>
+        </li>
 
+        {{-- Metode Pembayaran: admin only --}}
+        @if($isAdmin)
+        <li class="menu-item {{ request()->routeIs('master-data-metode-pembayaran.*', 'pembayaran-projek.*') ? 'active open' : '' }}">
+            <a href="javascript:void(0);" class="menu-link menu-toggle">
+                <i class="menu-icon tf-icons bx bx-wallet"></i>
+                <div>Pembayaran</div>
+            </a>
+            <ul class="menu-sub">
+                <li class="menu-item {{ request()->routeIs('master-data-metode-pembayaran.*') ? 'active' : '' }}">
+                    <a href="{{ route('master-data-metode-pembayaran.index') }}" class="menu-link">
+                        <i class="menu-icon tf-icons bx bx-credit-card"></i>
+                        <div>Metode Pembayaran</div>
+                    </a>
+                </li>
+                <li class="menu-item {{ request()->routeIs('pembayaran-projek.*') ? 'active' : '' }}">
+                    <a href="{{ route('pembayaran-projek.index') }}" class="menu-link">
+                        <i class="menu-icon tf-icons bx bx-receipt"></i>
+                        <div>Pembayaran Projek</div>
+                    </a>
+                </li>
+            </ul>
+        </li>
+        @endif {{-- end isAdmin keuangan --}}
 
-        
+        {{-- Pembayaran Projek: klien langsung (tanpa submenu) --}}
+        @if($isKlien)
+        <li class="menu-item {{ request()->routeIs('pembayaran-projek.*') ? 'active' : '' }}">
+            <a href="{{ route('pembayaran-projek.index') }}" class="menu-link">
+                <i class="menu-icon tf-icons bx bx-receipt"></i>
+                <div>Pembayaran Projek</div>
+            </a>
+        </li>
+        @endif
+        @endif {{-- end keuangan section --}}
 
     </ul>
 </aside>

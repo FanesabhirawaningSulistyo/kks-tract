@@ -5,15 +5,23 @@
 @endpush
 @section('content')
 
+@php
+    $isAdmin = auth()->user()->role === 'admin';
+    $isPM    = auth()->user()->role === 'pm';
+    $canEdit = $isAdmin; // hanya admin yang bisa tambah/edit/hapus/show 
+@endphp
+
 {{-- ── Page Header ── --}}
 <div class="page-header d-flex justify-content-between align-items-start flex-wrap gap-3">
     <div>
         <h4>Master Data Kategori Projek</h4>
         <p>Kelola data kategori projek</p>
     </div>
+    @if($canEdit)
     <button class="btn-main" data-bs-toggle="modal" data-bs-target="#addKategoriModal">
         <i class='bx bx-plus'></i> Tambah Kategori Projek
     </button>
+    @endif
 </div>
 
 @if(session('success') || session('error'))
@@ -47,7 +55,6 @@
             </a>
             @endforeach
         </div>
-
         {{-- Toolbar --}}
         <div class="toolbar">
             <div class="toolbar-left">
@@ -84,7 +91,9 @@
                     <th class="col-status sortable" data-column="status" style="min-width:110px;">Status <span class="sort-icon"></span></th>
                     <th class="col-dibuat sortable" data-column="dibuat_pada" style="min-width:130px;">Dibuat <span class="sort-icon"></span></th>
                     <th class="col-diubah sortable" data-column="diperbarui_pada" style="min-width:130px;">Diubah <span class="sort-icon"></span></th>
+                    @if($canEdit)
                     <th class="col-aksi" style="width:110px; text-align:right;">Aksi</th>
+                    @endif
                 </tr>
             </thead>
             <tbody id="kategoriTableBody">
@@ -122,6 +131,7 @@
                     </td>
                     <td class="col-dibuat"><span class="date-val">{{ $item->dibuat_pada ? \Carbon\Carbon::parse($item->dibuat_pada)->format('d/m/Y H:i') : '—' }}</span></td>
                     <td class="col-diubah"><span class="date-val">{{ $item->diperbarui_pada ? \Carbon\Carbon::parse($item->diperbarui_pada)->format('d/m/Y H:i') : '—' }}</span></td>
+                    @if($canEdit)
                     <td class="col-aksi" style="text-align:right;">
                         <div class="act-group">
                             <button type="button" class="act-btn view" onclick="viewKategori(this)" data-item='@json($item)' title="Lihat Detail"><i class='bx bx-show'></i></button>
@@ -129,9 +139,10 @@
                             <button type="button" class="act-btn delete" onclick="deleteKategori({{ $item->id_kategori_projek }},'{{ addslashes($item->nama_kategori) }}',{{ $item->projek_count }})" title="Hapus"><i class='bx bx-trash'></i></button>
                         </div>
                     </td>
+                    @endif
                 </tr>
                 @empty
-                <tr><td colspan="7">
+                <tr><td colspan="{{ $canEdit ? 7 : 6 }}">
                     <div class="empty-state">
                         <i class='bx bx-category'></i>
                         <p>Belum ada data kategori projek.<br>Tambahkan kategori projek pertama Anda.</p>
@@ -151,6 +162,7 @@
     </div>
 </div>
 
+@if($canEdit)
 {{-- ══ MODAL VIEW ══ --}}
 <div class="modal fade" id="viewKategoriModal" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered">
@@ -267,6 +279,7 @@
         </div>
     </div>
 </div>
+@endif {{-- end canEdit --}}
 
 {{-- ══ MODAL COLUMN SETTINGS ══ --}}
 <div class="modal fade" id="columnSettingsModal" tabindex="-1" aria-hidden="true">
@@ -287,7 +300,7 @@
                     ['status', 'Status',                 true,  false],
                     ['dibuat', 'Dibuat',                 false, false],
                     ['diubah', 'Diubah',                 false, false],
-                    ['aksi',   'Aksi',                   true,  true ],
+                    ...($canEdit ? [['aksi', 'Aksi', true, true]] : []),
                 ] as [$val, $label, $checked, $disabled])
                 <div class="col-check-item">
                     <input class="column-toggle" type="checkbox" value="{{ $val }}"
@@ -311,6 +324,7 @@
 <script>
 'use strict';
 const STORAGE_KEY = 'kategori_projek_col_v1';
+const CAN_EDIT    = {{ $canEdit ? 'true' : 'false' }}; // flag dari server
 let allRows = [], filteredRows = [];
 let currentPage = 1, perPage = 10, currentStatus = '', currentSearch = '';
 let searchTimeout = null, currentViewId = null;
@@ -423,16 +437,16 @@ function sortRows(col, dir) {
 
 /* ── Render ── */
 function renderTable() {
-    const tbody = document.getElementById('kategoriTableBody');
+    const tbody   = document.getElementById('kategoriTableBody');
+    const colspan = CAN_EDIT ? 7 : 6; // sesuaikan colspan dengan jumlah kolom
     tbody.innerHTML = '';
     const start = (currentPage - 1) * perPage;
     const page  = filteredRows.slice(start, start + perPage);
-
     if (page.length === 0) {
         let msg = 'Belum ada data kategori projek.';
         if (currentSearch) msg = `Tidak ada hasil untuk "<strong>${currentSearch}</strong>"`;
         else if (currentStatus !== '') msg = `Tidak ada data dengan status ${currentStatus==='1'?'Aktif':'Nonaktif'}.`;
-        tbody.innerHTML = `<tr><td colspan="7"><div class="empty-state"><i class='bx bx-category'></i><p>${msg}</p></div></td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="${colspan}"><div class="empty-state"><i class='bx bx-category'></i><p>${msg}</p></div></td></tr>`;
     } else {
         page.forEach((row, idx) => {
             const clone = row.el.cloneNode(true);
@@ -441,13 +455,13 @@ function renderTable() {
             tbody.appendChild(clone);
         });
     }
-
     const end = Math.min(start + perPage, filteredRows.length);
     document.getElementById('showingStart').textContent = filteredRows.length === 0 ? 0 : start + 1;
     document.getElementById('showingEnd').textContent   = end;
     document.getElementById('totalEntries').textContent = filteredRows.length;
     renderPagination();
 }
+
 function renderPagination() {
     const ctrl = document.getElementById('paginationControls');
     const total = Math.ceil(filteredRows.length / perPage);
@@ -475,8 +489,9 @@ function fmtDate(s) {
            d.toLocaleTimeString('id-ID',{hour:'2-digit',minute:'2-digit'});
 }
 
-/* ── CRUD ── */
+/* ── CRUD (hanya dijalankan jika CAN_EDIT) ── */
 function viewKategori(btn) {
+    if (!CAN_EDIT) return;
     const d = JSON.parse(btn.dataset.item);
     currentViewId = d.id_kategori_projek;
     document.getElementById('view_nama').textContent = d.nama_kategori || '—';
@@ -498,16 +513,15 @@ function viewKategori(btn) {
 }
 
 function editKategori(btn) {
+    if (!CAN_EDIT) return;
     const d = JSON.parse(btn.dataset.item);
     document.getElementById('edit_nama_kategori').value = d.nama_kategori || '';
     document.getElementById('edit_deskripsi').value     = d.deskripsi    || '';
     document.getElementById('edit_status').value        = d.status ? '1' : '0';
     document.getElementById('editKategoriForm').action  = `/master-data-kategori-projek/${d.id_kategori_projek}`;
-
-    const alertDiv   = document.getElementById('editKategoriAlert');
-    const statusHelp = document.getElementById('editStatusHelp');
+    const alertDiv    = document.getElementById('editKategoriAlert');
+    const statusHelp  = document.getElementById('editStatusHelp');
     const statusSelect = document.getElementById('edit_status');
-
     if (d.projek_count > 0) {
         alertDiv.innerHTML = `
             <div class="alert alert-warning mb-3">
@@ -525,11 +539,11 @@ function editKategori(btn) {
         statusHelp.style.display = 'none';
         Array.from(statusSelect.options).forEach(o => o.disabled = false);
     }
-
     new bootstrap.Modal(document.getElementById('editKategoriModal')).show();
 }
 
 function deleteKategori(id, nama, projekCount) {
+    if (!CAN_EDIT) return;
     if (projekCount > 0) {
         Swal.fire({
             title: 'Tidak Dapat Dihapus',
@@ -561,7 +575,7 @@ function deleteKategori(id, nama, projekCount) {
     if (!f) return;
     f.addEventListener('submit', function(e) {
         e.preventDefault();
-
+        if (!CAN_EDIT) return; // double-guard
         if (fid === 'editKategoriForm') {
             const statusSelect = document.getElementById('edit_status');
             const row = allRows.find(r => r.item.id_kategori_projek == currentViewId);
@@ -574,7 +588,6 @@ function deleteKategori(id, nama, projekCount) {
                 return;
             }
         }
-
         const mid = fid === 'addKategoriForm' ? 'addKategoriModal' : 'editKategoriModal';
         bootstrap.Modal.getInstance(document.getElementById(mid))?.hide();
         setTimeout(() => {
