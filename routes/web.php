@@ -1,6 +1,9 @@
 <?php
 
+use App\Http\Controllers\ApprovalTaskController;
 use App\Http\Controllers\Auth\AuthenticatedSessionController;
+use App\Http\Controllers\Auth\NewPasswordController;
+use App\Http\Controllers\Auth\PasswordResetLinkController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\JobRoleController;
 use App\Http\Controllers\KategoriProjectController;
@@ -48,14 +51,24 @@ Route::middleware('auth')->group(function () {
     
     Route::post('logout', [AuthenticatedSessionController::class, 'destroy'])
         ->name('logout');
-});
-Route::get('/forgot-password', function () {
-    return view('auth.forgot-password');
-})->name('password.request');
 
-Route::post('/forgot-password', function (Request $request) {
-    // Logic reset password
-})->name('password.email');
+    Route::prefix('performa-karyawan')->name('performa-karyawan.')->middleware('auth')->group(function () {
+        Route::get('/',            [\App\Http\Controllers\PerformaKaryawanController::class, 'index'])->name('index');
+        Route::get('/{id}/detail', [\App\Http\Controllers\PerformaKaryawanController::class, 'detail'])->name('detail');
+    });
+});
+
+Route::get('/forgot-password', [PasswordResetLinkController::class, 'create'])
+    ->name('password.request');
+
+Route::post('/forgot-password', [PasswordResetLinkController::class, 'store'])
+    ->name('password.email');
+
+Route::get('/reset-password/{token}', [NewPasswordController::class, 'create'])
+    ->name('password.reset');
+
+Route::post('/reset-password', [NewPasswordController::class, 'store'])
+    ->name('password.store');
 
 // Master Data Users
 Route::prefix('master-data-users')->name('master-data-users.')->group(function () {
@@ -127,22 +140,24 @@ Route::prefix('projek/{id_projek}/task')->name('task.')->middleware('auth')->gro
     // Halaman utama kelola task
     Route::get('/', [TaskController::class, 'index'])->name('index');
 
-    // API Task CRUD (JSON)
-    Route::get('/data', [TaskController::class, 'getTasks'])->name('data');
-    Route::post('/', [TaskController::class, 'storeTask'])->name('store');
-    Route::put('/{id_tugas}', [TaskController::class, 'updateTask'])->name('update');
-    Route::patch('/{id_tugas}/status-akhir', [TaskController::class, 'updateStatusAkhir'])->name('status-akhir');
-    Route::delete('/{id_tugas}', [TaskController::class, 'destroyTask'])->name('destroy');
+    // ─── Route statis (tanpa wildcard) — HARUS di atas route dengan {parameter} ───
+    Route::get('/data',       [TaskController::class, 'getTasks'])->name('data');
+    Route::get('/user-stats', [TaskController::class, 'getUserStats'])->name('user-stats'); // ← INI YANG HILANG
+    Route::post('/',          [TaskController::class, 'storeTask'])->name('store');
 
-    // Foto Tugas
-    Route::post('/{id_tugas}/foto', [TaskController::class, 'uploadFoto'])->name('foto.upload');
-    Route::delete('/{id_tugas}/foto/{id_foto}', [TaskController::class, 'destroyFoto'])->name('foto.destroy');
+    // Tim — statis dulu sebelum /{id_tugas}
+    Route::post('/tim/invite',       [TaskController::class, 'inviteTim'])->name('tim.invite');
+    Route::delete('/tim/{id_tim}',   [TaskController::class, 'removeTim'])->name('tim.remove');
 
-    // Tim Project
-    Route::post('/tim/invite', [TaskController::class, 'inviteTim'])->name('tim.invite');
-    Route::delete('/tim/{id_tim}', [TaskController::class, 'removeTim'])->name('tim.remove');
+    // ─── Route dengan wildcard {id_tugas} — HARUS di bawah route statis ───
+    Route::put('/{id_tugas}',                        [TaskController::class, 'updateTask'])->name('update');
+    Route::patch('/{id_tugas}/status-akhir',         [TaskController::class, 'updateStatusAkhir'])->name('status-akhir');
+    Route::delete('/{id_tugas}',                     [TaskController::class, 'destroyTask'])->name('destroy');
+    Route::post('/{id_tugas}/foto',                  [TaskController::class, 'uploadFoto'])->name('foto.upload');
+    Route::delete('/{id_tugas}/foto/{id_foto}',      [TaskController::class, 'destroyFoto'])->name('foto.destroy');
 });
 
+Route::patch('projek/{id}/tanggal', [ProjekController::class, 'updateTanggal'])->name('projek.updateTanggal');
 
 Route::prefix('pembayaran-projek')->name('pembayaran-projek.')->middleware(['auth'])->group(function () {
 
@@ -176,6 +191,12 @@ Route::prefix('pembayaran-projek')
         Route::get('/{id_pembayaran}/struk',  'cetakStruk')->name('cetakStruk');
         Route::get('/{id_projek}/cetak-riwayat', 'cetakRiwayat')->name('cetakRiwayat');
     });
+
+Route::prefix('approval-task')->name('approval-task.')->group(function () {
+    Route::get('/',          [ApprovalTaskController::class, 'index'])->name('index');
+    Route::post('/{id}/approve', [ApprovalTaskController::class, 'approve'])->name('approve');
+    Route::post('/{id}/revisi',  [ApprovalTaskController::class, 'revisi'])->name('revisi');
+});
 
 Route::prefix('master-data-metode-pembayaran')->name('master-data-metode-pembayaran.')->middleware('auth')->group(function () {
     Route::get('/', [MetodePembayaranController::class, 'index'])->name('index');

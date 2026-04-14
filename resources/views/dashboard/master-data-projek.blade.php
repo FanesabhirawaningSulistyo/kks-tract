@@ -213,7 +213,7 @@
                 {{-- Export All: hanya Admin --}}
                 @if($canExportAll)
                 <button class="btn-action btn-outline-custom" onclick="exportAllProjectsPDF()">
-                    <i class="bx bxs-file-pdf"></i> Export PDF
+                    <i class="bx bxs-file-pdf"></i> Export Rekap Projek
                 </button>
                 @endif
 
@@ -473,14 +473,26 @@
                 <td class="col-aksi">
                     <div class="action-buttons">
                         {{-- Kelola Task: semua role boleh --}}
-                        <a href="{{ route('task.index', $projek->id_projek) }}"
-                           class="btn btn-sm"
-                           style="background:#EEF2FF;color:#4F46E5;border:1px solid #C7D2FE;border-radius:8px;width:36px;height:36px;display:inline-flex;align-items:center;justify-content:center;font-size:16px;transition:all 0.2s;"
-                           onmouseover="this.style.background='#4F46E5';this.style.color='white';"
-                           onmouseout="this.style.background='#EEF2FF';this.style.color='#4F46E5';"
-                           title="Kelola Task">
-                            <i class="bx bx-task"></i>
-                        </a>
+                        {{-- Kelola Task: PM & Admin → kelolatask | Karyawan → taskkaryawan --}}
+@if($isKaryawan)
+<a href="{{ route('dashboard.taskkaryawan') }}?id_projek={{ $projek->id_projek }}"
+   class="btn btn-sm"
+   style="background:#EEF2FF;color:#4F46E5;border:1px solid #C7D2FE;border-radius:8px;width:36px;height:36px;display:inline-flex;align-items:center;justify-content:center;font-size:16px;transition:all 0.2s;"
+   onmouseover="this.style.background='#4F46E5';this.style.color='white';"
+   onmouseout="this.style.background='#EEF2FF';this.style.color='#4F46E5';"
+   title="Task Saya">
+    <i class="bx bx-task"></i>
+</a>
+@else
+<a href="{{ route('task.index', $projek->id_projek) }}"
+   class="btn btn-sm"
+   style="background:#EEF2FF;color:#4F46E5;border:1px solid #C7D2FE;border-radius:8px;width:36px;height:36px;display:inline-flex;align-items:center;justify-content:center;font-size:16px;transition:all 0.2s;"
+   onmouseover="this.style.background='#4F46E5';this.style.color='white';"
+   onmouseout="this.style.background='#EEF2FF';this.style.color='#4F46E5';"
+   title="Kelola Task">
+    <i class="bx bx-task"></i>
+</a>
+@endif
 
                         {{-- Kelola Task: Admin, PM, Karyawan boleh — Klien TIDAK --}}
 {{-- @if(!$isKlien)

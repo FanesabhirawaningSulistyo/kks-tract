@@ -66,6 +66,8 @@
             </a>
         </li>
 
+      
+
         {{-- ════════════════════════════════
              MANAJEMEN — admin only
         ════════════════════════════════ --}}
@@ -105,6 +107,18 @@
         </li>
         @endif {{-- end isAdmin --}}
 
+                @if($isAdmin || $isPM || $isKaryawan)
+<li class="menu-header small text-uppercase">
+    <span class="menu-header-text">Performa</span>
+</li>
+<li class="menu-item {{ request()->routeIs('performa-karyawan.*') ? 'active' : '' }}">
+    <a href="{{ route('performa-karyawan.index') }}" class="menu-link">
+        <i class="menu-icon tf-icons bx bx-trophy"></i>
+        <div>Performa Karyawan</div>
+    </a>
+</li>
+@endif
+
         {{-- ════════════════════════════════
              PROJEK
              Admin    → Kategori + Data Projek
@@ -126,7 +140,6 @@
             </a>
         </li>
         @endif
-
         {{-- Data Projek: semua role --}}
         <li class="menu-item {{ request()->routeIs('master-data-projek.*') ? 'active' : '' }}">
             <a href="{{ route('master-data-projek.index') }}" class="menu-link">
@@ -134,6 +147,14 @@
                 <div>Data Projek</div>
             </a>
         </li>
+          @if($isAdmin || $isPM)
+        <li class="menu-item {{ request()->routeIs('approval-task.*') ? 'active' : '' }}">
+            <a href="{{ route('approval-task.index') }}" class="menu-link">
+                <i class="menu-icon tf-icons bx bx-purchase-tag-alt"></i>
+                <div>Approval Task</div>
+            </a>
+        </li>
+        @endif
         @endif {{-- end projek section --}}
 
         {{-- ════════════════════════════════
@@ -180,6 +201,23 @@
         </li>
         @endif
         @endif {{-- end keuangan section --}}
+
+          {{-- ════════════════════════════════
+             TASK — karyawan only
+        ════════════════════════════════ --}}
+        @if($isKaryawan)
+        <li class="menu-header small text-uppercase">
+            <span class="menu-header-text">Task</span>
+        </li>
+        <li class="menu-item {{ request()->routeIs('dashboard.taskkaryawan') ? 'active' : '' }}">
+            <a href="{{ route('dashboard.taskkaryawan') }}" class="menu-link">
+                <i class="menu-icon tf-icons bx bx-task"></i>
+                <div>Daftar Task</div>
+            </a>
+        </li>
+        @endif
+
+
 
     </ul>
 </aside>

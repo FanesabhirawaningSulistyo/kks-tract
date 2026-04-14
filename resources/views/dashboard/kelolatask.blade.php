@@ -1676,22 +1676,50 @@ async function addNewTask() {
 async function updateStatusAkhir(id, sa) {
     const task     = tasks.find(t => t.id_tugas === id);
     const taskName = task ? (task.judul_tugas || 'Task').substring(0, 28) : 'Task';
+ 
     if (sa === 'approved' && task && task.status_progress !== 'done') {
         showToast('Task harus berstatus Done sebelum dapat di-Approved.', 'error', 'Tidak Bisa Approved', 4000);
         const selects = document.querySelectorAll(`tr[data-id="${id}"] select`);
         selects.forEach(sel => { if (sel.querySelector('option[value="approved"]')) sel.value = task.status_akhir || ''; });
         return;
     }
+ 
     showToast('Memperbarui status akhir...', 'saving', `"${taskName}"`, 0);
+ 
     const d = await apiFetch(`${BASE_URL}/${id}/status-akhir`, 'PATCH', { status_akhir: sa || null });
+ 
     if (d.success) {
-        if (task) task.status_akhir = sa || null;
+        if (task) {
+            task.status_akhir = sa || null;
+ 
+            // ── PERBAIKAN: Jika revisi, server otomatis reset status_progress ke To Do ──
+            // Server mengirimkan kembali status_progress yang sudah diperbarui
+            if (d.data && d.data.status_progress) {
+                task.status_progress = d.data.status_progress;
+            }
+            if (d.data && d.data.tanggal_selesai !== undefined) {
+                task.tanggal_selesai = d.data.tanggal_selesai;
+            }
+        }
+ 
         const b = document.getElementById('saBadge-' + id);
         if (b) { b.className = `sa-badge ${sa ? 'sa-' + sa : 'sa-null'}`; b.textContent = SA_LABELS[sa] || '—'; }
-        showToast(sa ? `Status akhir diset ke "${SA_LABELS[sa]}"` : 'Status akhir dihapus', 'success', `✓ ${taskName}`, 3000);
+ 
+        showToast(
+            sa ? `Status akhir diset ke "${SA_LABELS[sa]}"` + (sa === 'revisi' ? ' — task dikembalikan ke To Do' : '') : 'Status akhir dihapus',
+            'success',
+            `✓ ${taskName}`,
+            3500
+        );
+ 
+        // Re-render semua baris — ini penting agar baris revisi pindah ke kolom To Do
         renderAllTasks();
-        updateCharts(); buildPerformanceChart(currentChartView);
-    } else { showToast(d.message || 'Gagal memperbarui status akhir.', 'error', `Gagal: ${taskName}`, 5000); }
+        updateCharts();
+        buildPerformanceChart(currentChartView);
+ 
+    } else {
+        showToast(d.message || 'Gagal memperbarui status akhir.', 'error', `Gagal: ${taskName}`, 5000);
+    }
 }
 
 /* ══════════════════════

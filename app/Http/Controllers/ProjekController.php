@@ -1,6 +1,5 @@
 <?php
 namespace App\Http\Controllers;
-
 use App\Models\Projek;
 use App\Models\Perusahaan;
 use App\Models\KategoriProjek;
@@ -9,14 +8,13 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\DB;
-
+use Illuminate\Support\Facades\Validator;
 class ProjekController extends Controller
 {
     public function index(Request $request)
     {
         /** @var User $user */
         $user = Auth::user();
-
         $query = Projek::with([
             'perusahaan',
             'kategoriProjek',
@@ -28,40 +26,35 @@ class ProjekController extends Controller
 
         // ─────────────────────────────────────────────────────────────
         // ROLE-BASED FILTERING
+        // Inisialisasi $proyekIdList di sini agar tersedia untuk $statsQuery
         // ─────────────────────────────────────────────────────────────
+        $proyekIdList = []; // default kosong
+
         if ($user->isAdmin()) {
-            // Admin: tampilkan semua project
+            // Admin: tampilkan semua project, tidak perlu filter
+
         } elseif ($user->isPM()) {
+            // PM: hanya project yang dia buat (dibuat_oleh = id_user PM)
             $query->where('dibuat_oleh', $user->id_user);
+
         } elseif ($user->isKaryawan()) {
-            // Cast id_user ke integer untuk memastikan tipe data cocok saat query
+            // Karyawan: hanya project yang dia tergabung di projek_tim
             $idUser = (int) $user->id_user;
 
             $proyekIdList = DB::table('projek_tim')
                 ->where('id_user', $idUser)
                 ->pluck('id_projek')
-                ->map(fn($id) => (int) $id)  // pastikan semua id_projek juga integer
+                ->map(fn($id) => (int) $id)
                 ->unique()
                 ->values()
                 ->toArray();
-
-            // ══ TEMPORARY DEBUG — HAPUS SETELAH KONFIRMASI ══
-            // Uncomment baris dd() di bawah untuk debug, akses halaman,
-            // lihat output, lalu comment lagi
-            // dd([
-            //     'id_user_raw'     => $user->id_user,
-            //     'id_user_cast'    => $idUser,
-            //     'id_user_type'    => gettype($user->id_user),
-            //     'proyekIdList'    => $proyekIdList,
-            //     'all_projek_tim'  => DB::table('projek_tim')->get()->toArray(),
-            // ]);
-            // ══ END DEBUG ══
 
             if (empty($proyekIdList)) {
                 $query->whereRaw('1 = 0');
             } else {
                 $query->whereIn('projek.id_projek', $proyekIdList);
             }
+
         } elseif ($user->isKlien()) {
             $perusahaan = $user->perusahaan;
             if ($perusahaan) {
@@ -85,9 +78,11 @@ class ProjekController extends Controller
                     });
             });
         }
+
         if ($request->filled('id_kategori_projek')) {
             $query->where('id_kategori_projek', $request->id_kategori_projek);
         }
+
         if ($request->filled('status')) {
             $query->where('status', $request->status);
         }
@@ -98,9 +93,11 @@ class ProjekController extends Controller
         $sortBy    = $request->get('sort_by', 'dibuat_pada');
         $sortOrder = $request->get('sort_order', 'desc');
         $allowedSorts = ['nama_projek', 'status', 'tanggal_mulai', 'nominal_projek', 'dibuat_pada', 'dibuat_oleh'];
+
         if (!in_array($sortBy, $allowedSorts)) {
             $sortBy = 'dibuat_pada';
         }
+
         if ($sortBy === 'kategori') {
             $query->leftJoin('kategori_projek', 'projek.id_kategori_projek', '=', 'kategori_projek.id_kategori_projek')
                 ->orderBy('kategori_projek.nama_kategori', $sortOrder)
@@ -121,6 +118,7 @@ class ProjekController extends Controller
         // ─────────────────────────────────────────────────────────────
         $perPage = in_array((int) $request->get('per_page'), [10, 25, 50, 100])
             ? (int) $request->get('per_page') : 10;
+
         $projeks   = $query->paginate($perPage)->withQueryString();
         $projekIds = $projeks->pluck('id_projek')->toArray();
 
@@ -151,17 +149,24 @@ class ProjekController extends Controller
             ->get(['id_user', 'nama', 'email']);
 
         // ─────────────────────────────────────────────────────────────
-        // STATS
+        // STATS — menggunakan scope yang sama dengan query utama
         // ─────────────────────────────────────────────────────────────
         $statsQuery = Projek::query();
-        if ($user->isPM()) {
+
+        if ($user->isAdmin()) {
+            // Admin: semua project, tidak perlu filter tambahan
+
+        } elseif ($user->isPM()) {
             $statsQuery->where('dibuat_oleh', $user->id_user);
+
         } elseif ($user->isKaryawan()) {
+            // Gunakan $proyekIdList yang sudah diinisialisasi di atas
             if (empty($proyekIdList)) {
                 $statsQuery->whereRaw('1 = 0');
             } else {
                 $statsQuery->whereIn('id_projek', $proyekIdList);
             }
+
         } elseif ($user->isKlien()) {
             $perusahaan = $user->perusahaan;
             if ($perusahaan) {
@@ -170,6 +175,7 @@ class ProjekController extends Controller
                 $statsQuery->whereRaw('1 = 0');
             }
         }
+
         $stats = [
             'total'       => (clone $statsQuery)->count(),
             'pending'     => (clone $statsQuery)->where('status', 'pending')->count(),
@@ -257,7 +263,6 @@ class ProjekController extends Controller
                 'dokumen_perjanjian' => $projek->dokumen_perjanjian,
                 'pembuat_nama'       => optional($projek->pembuat)->nama ?? '—',
                 'pembuat_email'      => optional($projek->pembuat)->email ?? '',
-                // Untuk dropdown edit penanggung jawab
                 'dibuat_oleh'        => $projek->dibuat_oleh,
                 'progress'           => $pg,
                 'approved_weight'    => $aw,
@@ -295,21 +300,18 @@ class ProjekController extends Controller
             'status'             => 'required|in:pending,in_progress,aktif,selesai',
             'tanggal_mulai'      => 'nullable|date',
             'tanggal_selesai'    => 'nullable|date|after_or_equal:tanggal_mulai',
-            // Nominal hanya wajib diisi oleh Admin; PM tidak mengirim field ini
             'nominal_projek'     => $user->isAdmin() ? 'required|numeric|min:0' : 'nullable|numeric|min:0',
             'dokumen_perjanjian' => 'nullable|file|mimes:pdf,doc,docx,jpg,jpeg,png,webp|max:5120',
             'deskripsi'          => 'nullable|string',
             'dibuat_oleh'        => 'nullable|exists:users,id_user',
         ]);
 
-        // Tentukan penanggung jawab
         if ($user->isAdmin()) {
             $validated['dibuat_oleh'] = $request->dibuat_oleh ?: $user->id_user;
         } else {
             $validated['dibuat_oleh'] = $user->id_user;
         }
 
-        // Nominal: hanya admin yang mengisi, PM default 0
         if (!$user->isAdmin()) {
             $validated['nominal_projek'] = 0;
         }
@@ -336,6 +338,7 @@ class ProjekController extends Controller
         if ($user->isKaryawan() || $user->isKlien()) {
             return response()->json(['success' => false, 'message' => 'Akses ditolak.'], 403);
         }
+
         if ($user->isPM() && $projek->dibuat_oleh !== $user->id_user) {
             return response()->json(['success' => false, 'message' => 'Akses ditolak.'], 403);
         }
@@ -343,6 +346,7 @@ class ProjekController extends Controller
         $request->validate([
             'status' => 'required|in:pending,in_progress,aktif,selesai',
         ]);
+
         $projek->update(['status' => $request->status]);
 
         return response()->json([
@@ -361,6 +365,7 @@ class ProjekController extends Controller
         if (!$user->isAdmin() && !$user->isPM()) {
             abort(403, 'Anda tidak memiliki akses untuk mengedit project.');
         }
+
         if ($user->isPM() && $projek->dibuat_oleh !== $user->id_user) {
             abort(403, 'Anda hanya bisa mengedit project yang Anda buat.');
         }
@@ -371,7 +376,6 @@ class ProjekController extends Controller
             'id_kategori_projek' => 'nullable|exists:kategori_projek,id_kategori_projek',
             'status'             => 'required|in:pending,in_progress,aktif,selesai',
             'tanggal_selesai'    => 'nullable|date',
-            // Nominal hanya wajib diisi oleh Admin; PM tidak mengirim field ini
             'nominal_projek'     => $user->isAdmin() ? 'required|numeric|min:0' : 'nullable|numeric|min:0',
             'dokumen_perjanjian' => 'nullable|file|mimes:pdf,doc,docx,jpg,jpeg,png,webp|max:5120',
             'deskripsi'          => 'nullable|string',
@@ -380,16 +384,14 @@ class ProjekController extends Controller
 
         unset($validated['tanggal_mulai']);
 
-        // Hanya admin yang boleh ganti penanggung jawab
         if (!$user->isAdmin()) {
             unset($validated['dibuat_oleh']);
         } else {
             $validated['dibuat_oleh'] = $request->dibuat_oleh ?: $projek->dibuat_oleh;
         }
 
-        // Nominal: hanya admin yang bisa ubah; PM pertahankan nilai lama
         if (!$user->isAdmin()) {
-            $validated['nominal_projek'] = $projek->nominal_projek;
+            $validated['nominal_projek']  = $projek->nominal_projek;
             $validated['sisa_tanggungan'] = $projek->sisa_tanggungan;
         } else {
             $selisih = $validated['nominal_projek'] - $projek->nominal_projek;
@@ -419,13 +421,54 @@ class ProjekController extends Controller
         if (!$user->isAdmin()) {
             abort(403, 'Anda tidak memiliki akses untuk menghapus project.');
         }
+
         if ($projek->dokumen_perjanjian) {
             Storage::disk('public')->delete($projek->dokumen_perjanjian);
         }
+
         $projek->delete();
 
         return redirect()->route('master-data-projek.index')
             ->with('success', 'Project berhasil dihapus.');
+    }
+
+    public function updateTanggal(Request $request, $id)
+    {
+        /** @var User $user */
+        $user   = Auth::user();
+        $projek = Projek::findOrFail($id);
+
+        if ($user->isKaryawan() || $user->isKlien()) {
+            return response()->json(['success' => false, 'message' => 'Akses ditolak.'], 403);
+        }
+
+        if ($user->isPM() && $projek->dibuat_oleh !== $user->id_user) {
+            return response()->json(['success' => false, 'message' => 'Anda hanya bisa mengedit project milik Anda.'], 403);
+        }
+
+        $validator = Validator::make($request->all(), [
+            'tanggal_mulai'   => 'nullable|date',
+            'tanggal_selesai' => 'nullable|date|after_or_equal:tanggal_mulai',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json([
+                'success' => false,
+                'message' => $validator->errors()->first(),
+            ], 422);
+        }
+
+        $projek->update([
+            'tanggal_mulai'   => $request->tanggal_mulai   ?: null,
+            'tanggal_selesai' => $request->tanggal_selesai ?: null,
+        ]);
+
+        return response()->json([
+            'success'         => true,
+            'message'         => 'Tanggal project berhasil diperbarui.',
+            'tanggal_mulai'   => $projek->tanggal_mulai,
+            'tanggal_selesai' => $projek->tanggal_selesai,
+        ]);
     }
 
     public function laporan($id)
