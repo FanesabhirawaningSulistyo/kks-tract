@@ -15,13 +15,47 @@ class PembayaranProjekController extends Controller
 {
     public function index(Request $request)
     {
+        /** @var \App\Models\User $user */
+        $user = Auth::user();
+
         $filterStatus = $request->get('filter_lunas', 'belum_lunas');
+
         $query = Projek::with(['perusahaan', 'kategoriProjek', 'pembuat', 'tugas']);
+
+        // ─────────────────────────────────────────────────────────────
+        // ROLE-BASED FILTERING (sama seperti ProjekController)
+        // ─────────────────────────────────────────────────────────────
+        if ($user->isAdmin()) {
+            // Admin: tampilkan semua project
+
+        } elseif ($user->isPM()) {
+            // PM: hanya project yang dia buat
+            $query->where('dibuat_oleh', $user->id_user);
+        } elseif ($user->isKlien()) {
+            // Klien: hanya project dari perusahaan miliknya
+            $perusahaan = $user->perusahaan;
+            if ($perusahaan) {
+                $query->where('id_perusahaan', $perusahaan->id_perusahaan);
+            } else {
+                $query->whereRaw('1 = 0');
+            }
+        } elseif ($user->isKaryawan()) {
+            // Karyawan tidak punya akses ke halaman pembayaran
+            abort(403, 'Anda tidak memiliki akses ke halaman ini.');
+        }
+
+        // ─────────────────────────────────────────────────────────────
+        // FILTER LUNAS / BELUM LUNAS
+        // ─────────────────────────────────────────────────────────────
         if ($filterStatus === 'lunas') {
             $query->where('sisa_tanggungan', '<=', 0);
         } else {
             $query->where('sisa_tanggungan', '>', 0);
         }
+
+        // ─────────────────────────────────────────────────────────────
+        // FILTER SEARCH, KATEGORI, STATUS
+        // ─────────────────────────────────────────────────────────────
         if ($request->filled('search')) {
             $search = $request->search;
             $query->where(function ($q) use ($search) {
@@ -32,16 +66,24 @@ class PembayaranProjekController extends Controller
                     });
             });
         }
+
         if ($request->filled('id_kategori_projek')) {
             $query->where('id_kategori_projek', $request->id_kategori_projek);
         }
+
         if ($request->filled('status')) {
             $query->where('status', $request->status);
         }
+
         $query->orderBy('dibuat_pada', 'desc');
+
         $perPage   = in_array((int) $request->get('per_page'), [10, 25, 50, 100]) ? (int) $request->get('per_page') : 10;
         $projeks   = $query->paginate($perPage)->withQueryString();
         $projekIds = $projeks->pluck('id_projek')->toArray();
+
+        // ─────────────────────────────────────────────────────────────
+        // PROGRESS
+        // ─────────────────────────────────────────────────────────────
         $progressDb = DB::table('tugas')
             ->select(
                 'id_projek',
@@ -50,15 +92,43 @@ class PembayaranProjekController extends Controller
                 DB::raw('SUM(CASE WHEN status_progress != "draft" THEN 1 ELSE 0 END) as total_count'),
                 DB::raw('SUM(CASE WHEN status_progress = "done" AND status_akhir = "approved" THEN 1 ELSE 0 END) as approved_count')
             )
-            ->whereIn('id_projek', $projekIds)->groupBy('id_projek')->get()->keyBy('id_projek');
-        $kategoris   = KategoriProjek::orderBy('nama_kategori')->get();
+            ->whereIn('id_projek', $projekIds)
+            ->groupBy('id_projek')
+            ->get()
+            ->keyBy('id_projek');
+
+        $kategoris = KategoriProjek::orderBy('nama_kategori')->get();
+
+        // ─────────────────────────────────────────────────────────────
+        // STATS — scope sama dengan role user yang login
+        // ─────────────────────────────────────────────────────────────
+        $statsQuery = Projek::query();
+
+        if ($user->isAdmin()) {
+            // semua
+
+        } elseif ($user->isPM()) {
+            $statsQuery->where('dibuat_oleh', $user->id_user);
+        } elseif ($user->isKlien()) {
+            $perusahaan = $user->perusahaan;
+            if ($perusahaan) {
+                $statsQuery->where('id_perusahaan', $perusahaan->id_perusahaan);
+            } else {
+                $statsQuery->whereRaw('1 = 0');
+            }
+        }
+
         $stats = [
-            'total_projek'  => Projek::count(),
-            'belum_lunas'   => Projek::where('sisa_tanggungan', '>', 0)->count(),
-            'lunas'         => Projek::where('sisa_tanggungan', '<=', 0)->count(),
-            'total_sisa'    => Projek::where('sisa_tanggungan', '>', 0)->sum('sisa_tanggungan'),
-            'total_nominal' => Projek::sum('nominal_projek'),
+            'total_projek'  => (clone $statsQuery)->count(),
+            'belum_lunas'   => (clone $statsQuery)->where('sisa_tanggungan', '>', 0)->count(),
+            'lunas'         => (clone $statsQuery)->where('sisa_tanggungan', '<=', 0)->count(),
+            'total_sisa'    => (clone $statsQuery)->where('sisa_tanggungan', '>', 0)->sum('sisa_tanggungan'),
+            'total_nominal' => (clone $statsQuery)->sum('nominal_projek'),
         ];
+
+        // ─────────────────────────────────────────────────────────────
+        // projeksData untuk tabel (paginated)
+        // ─────────────────────────────────────────────────────────────
         $projeksData = $projeks->map(function ($projek) use ($progressDb) {
             $prog = $progressDb->get($projek->id_projek);
             $tw = $prog ? (float) $prog->total_weight : 0;
@@ -66,6 +136,7 @@ class PembayaranProjekController extends Controller
             $tc = $prog ? (int) $prog->total_count : 0;
             $ac = $prog ? (int) $prog->approved_count : 0;
             $pg = $tw > 0 ? round(($aw / $tw) * 100, 2) : ($tc > 0 ? round(($ac / $tc) * 100, 2) : 0);
+
             return [
                 'id_projek'       => $projek->id_projek,
                 'nama_projek'     => $projek->nama_projek,
@@ -78,11 +149,31 @@ class PembayaranProjekController extends Controller
                 'progress'        => $pg,
             ];
         })->values()->all();
+
         $metodes = MetodePembayaran::orderBy('nama_metode')->get();
 
-        // ✅ ALL projects (tidak paginated) untuk laporan PDF — agar lunas & belum lunas semua muncul
-        $allProjeks = Projek::with(['perusahaan', 'kategoriProjek'])->orderBy('dibuat_pada', 'desc')->get();
-        $allProjekIds = $allProjeks->pluck('id_projek')->toArray();
+        // ─────────────────────────────────────────────────────────────
+        // ALL projects untuk laporan PDF — scope sama dengan role
+        // ─────────────────────────────────────────────────────────────
+        $allQuery = Projek::with(['perusahaan', 'kategoriProjek'])->orderBy('dibuat_pada', 'desc');
+
+        if ($user->isAdmin()) {
+            // semua
+
+        } elseif ($user->isPM()) {
+            $allQuery->where('dibuat_oleh', $user->id_user);
+        } elseif ($user->isKlien()) {
+            $perusahaan = $user->perusahaan;
+            if ($perusahaan) {
+                $allQuery->where('id_perusahaan', $perusahaan->id_perusahaan);
+            } else {
+                $allQuery->whereRaw('1 = 0');
+            }
+        }
+
+        $allProjeks    = $allQuery->get();
+        $allProjekIds  = $allProjeks->pluck('id_projek')->toArray();
+
         $allProgressDb = DB::table('tugas')
             ->select(
                 'id_projek',
@@ -91,7 +182,11 @@ class PembayaranProjekController extends Controller
                 DB::raw('SUM(CASE WHEN status_progress != "draft" THEN 1 ELSE 0 END) as total_count'),
                 DB::raw('SUM(CASE WHEN status_progress = "done" AND status_akhir = "approved" THEN 1 ELSE 0 END) as approved_count')
             )
-            ->whereIn('id_projek', $allProjekIds)->groupBy('id_projek')->get()->keyBy('id_projek');
+            ->whereIn('id_projek', $allProjekIds)
+            ->groupBy('id_projek')
+            ->get()
+            ->keyBy('id_projek');
+
         $allProjeksData = $allProjeks->map(function ($projek) use ($allProgressDb) {
             $prog = $allProgressDb->get($projek->id_projek);
             $tw = $prog ? (float) $prog->total_weight : 0;
@@ -99,6 +194,7 @@ class PembayaranProjekController extends Controller
             $tc = $prog ? (int) $prog->total_count : 0;
             $ac = $prog ? (int) $prog->approved_count : 0;
             $pg = $tw > 0 ? round(($aw / $tw) * 100, 2) : ($tc > 0 ? round(($ac / $tc) * 100, 2) : 0);
+
             return [
                 'id_projek'       => $projek->id_projek,
                 'nama_projek'     => $projek->nama_projek,
@@ -112,39 +208,61 @@ class PembayaranProjekController extends Controller
             ];
         })->values()->all();
 
-        $monthlyPayments = DB::table('pembayaran_projek')
+        // ─────────────────────────────────────────────────────────────
+        // Monthly payments untuk chart — scope sama dengan role
+        // ─────────────────────────────────────────────────────────────
+        $monthlyQuery = DB::table('pembayaran_projek')
             ->select(
                 DB::raw('YEAR(tanggal_bayar) as year'),
                 DB::raw('MONTH(tanggal_bayar) as month'),
                 DB::raw('SUM(jumlah_bayar) as total')
             )
-            ->where('status', 'valid')
+            ->where('status', 'valid');
+
+        // Filter monthly payments berdasarkan project yang boleh dilihat role ini
+        if (!$user->isAdmin() && count($allProjekIds) > 0) {
+            $monthlyQuery->whereIn('id_projek', $allProjekIds);
+        } elseif (!$user->isAdmin() && count($allProjekIds) === 0) {
+            $monthlyQuery->whereRaw('1 = 0');
+        }
+
+        $monthlyPayments = $monthlyQuery
             ->groupBy(DB::raw('YEAR(tanggal_bayar)'), DB::raw('MONTH(tanggal_bayar)'))
             ->orderBy('year', 'asc')
             ->orderBy('month', 'asc')
             ->get()
             ->toArray();
 
-        // ✅ Detailed payments untuk laporan pendapatan
-        $detailedPayments = PembayaranProjek::with(['projek.perusahaan', 'petugas', 'metode'])
+        // ─────────────────────────────────────────────────────────────
+        // Detailed payments untuk laporan pendapatan — scope sama
+        // ─────────────────────────────────────────────────────────────
+        $detailedQuery = PembayaranProjek::with(['projek.perusahaan', 'petugas', 'metode'])
             ->where('status', 'valid')
-            ->orderBy('tanggal_bayar', 'asc')
-            ->get()
-            ->map(function ($item) {
-                return [
-                    'id_pembayaran'   => $item->id_pembayaran,
-                    'kode_pembayaran' => $item->kode_pembayaran,
-                    'jumlah_bayar'    => (float) $item->jumlah_bayar,
-                'tanggal_bayar' => $item->tanggal_bayar ? \Carbon\Carbon::parse($item->tanggal_bayar)->format('Y-m-d') : null,
-                    'nama_projek'     => optional($item->projek)->nama_projek ?? '—',
-                    'nominal_projek'  => (float) optional($item->projek)->nominal_projek ?? 0,
-                    'nama_perusahaan' => optional(optional($item->projek)->perusahaan)->nama_perusahaan ?? '—',
-                    'nama_perwakilan' => optional(optional($item->projek)->perusahaan)->nama_perwakilan ?? '—',
-                    'nama_petugas'    => optional($item->petugas)->nama ?? '—',
-                    'nama_metode'     => optional($item->metode)->nama_metode ?? '—',
-                    'sisa_tanggungan' => (float) optional($item->projek)->sisa_tanggungan ?? 0,
-                ];
-            })->toArray();
+            ->orderBy('tanggal_bayar', 'asc');
+
+        if (!$user->isAdmin() && count($allProjekIds) > 0) {
+            $detailedQuery->whereIn('id_projek', $allProjekIds);
+        } elseif (!$user->isAdmin() && count($allProjekIds) === 0) {
+            $detailedQuery->whereRaw('1 = 0');
+        }
+
+        $detailedPayments = $detailedQuery->get()->map(function ($item) {
+            return [
+                'id_pembayaran'   => $item->id_pembayaran,
+                'kode_pembayaran' => $item->kode_pembayaran,
+                'jumlah_bayar'    => (float) $item->jumlah_bayar,
+                'tanggal_bayar'   => $item->tanggal_bayar
+                    ? \Carbon\Carbon::parse($item->tanggal_bayar)->format('Y-m-d')
+                    : null,
+                'nama_projek'     => optional($item->projek)->nama_projek ?? '—',
+                'nominal_projek'  => (float) optional($item->projek)->nominal_projek ?? 0,
+                'nama_perusahaan' => optional(optional($item->projek)->perusahaan)->nama_perusahaan ?? '—',
+                'nama_perwakilan' => optional(optional($item->projek)->perusahaan)->nama_perwakilan ?? '—',
+                'nama_petugas'    => optional($item->petugas)->nama ?? '—',
+                'nama_metode'     => optional($item->metode)->nama_metode ?? '—',
+                'sisa_tanggungan' => (float) optional($item->projek)->sisa_tanggungan ?? 0,
+            ];
+        })->toArray();
 
         $logoUrl = asset('images/logo1.png');
 

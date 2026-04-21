@@ -163,7 +163,7 @@
     $canCreate   = $isAdmin || $isPM;
     $canEdit     = $isAdmin || $isPM;
     // Hanya admin yang bisa hapus
-    $canDelete   = $isAdmin;
+    $canDelete   = $isAdmin || $isPM;
     // Export keseluruhan: admin saja (PM bisa export per-project, bukan all)
     $canExportAll = $isAdmin;
     // Export per-project: admin, PM, klien
@@ -470,65 +470,64 @@
                     </div>
                 </td>
 
-                <td class="col-aksi">
-                    <div class="action-buttons">
-                        {{-- Kelola Task: semua role boleh --}}
-                        {{-- Kelola Task: PM & Admin → kelolatask | Karyawan → taskkaryawan --}}
-@if($isKaryawan)
-<a href="{{ route('dashboard.taskkaryawan') }}?id_projek={{ $projek->id_projek }}"
-   class="btn btn-sm"
-   style="background:#EEF2FF;color:#4F46E5;border:1px solid #C7D2FE;border-radius:8px;width:36px;height:36px;display:inline-flex;align-items:center;justify-content:center;font-size:16px;transition:all 0.2s;"
-   onmouseover="this.style.background='#4F46E5';this.style.color='white';"
-   onmouseout="this.style.background='#EEF2FF';this.style.color='#4F46E5';"
-   title="Task Saya">
-    <i class="bx bx-task"></i>
-</a>
-@else
-<a href="{{ route('task.index', $projek->id_projek) }}"
-   class="btn btn-sm"
-   style="background:#EEF2FF;color:#4F46E5;border:1px solid #C7D2FE;border-radius:8px;width:36px;height:36px;display:inline-flex;align-items:center;justify-content:center;font-size:16px;transition:all 0.2s;"
-   onmouseover="this.style.background='#4F46E5';this.style.color='white';"
-   onmouseout="this.style.background='#EEF2FF';this.style.color='#4F46E5';"
-   title="Kelola Task">
-    <i class="bx bx-task"></i>
-</a>
-@endif
+          <td class="col-aksi">
+    <div class="action-buttons">
+        @if($isKlien)
+            {{-- Klien: hanya View Detail --}}
+            <button type="button" class="action-btn view" title="Lihat Detail"
+                onclick="openViewModal({{ $projek->id_projek }})">
+                <i class="bx bx-show"></i>
+            </button>
+        @else
+            {{-- Kelola Task: PM & Admin → kelolatask | Karyawan → taskkaryawan --}}
+            @if($isKaryawan)
+            <a href="{{ route('dashboard.taskkaryawan') }}?id_projek={{ $projek->id_projek }}"
+               class="btn btn-sm"
+               style="background:#EEF2FF;color:#4F46E5;border:1px solid #C7D2FE;
+               border-radius:8px;width:36px;height:36px;display:inline-flex;align-items:center;
+               justify-content:center;font-size:16px;transition:all 0.2s;"
+               onmouseover="this.style.background='#4F46E5';this.style.color='white';"
+               onmouseout="this.style.background='#EEF2FF';this.style.color='#4F46E5';"
+               title="Task Saya">
+                <i class="bx bx-task"></i>
+            </a>
+            @else
+            <a href="{{ route('task.index', $projek->id_projek) }}"
+               class="btn btn-sm"
+               style="background:#EEF2FF;color:#4F46E5;border:1px solid #C7D2FE;
+               border-radius:8px;width:36px;height:36px;display:inline-flex;
+               align-items:center;justify-content:center;font-size:16px;transition:all 0.2s;"
+               onmouseover="this.style.background='#4F46E5';this.style.color='white';"
+               onmouseout="this.style.background='#EEF2FF';this.style.color='#4F46E5';"
+               title="Kelola Task">
+                <i class="bx bx-task"></i>
+            </a>
+            @endif
 
-                        {{-- Kelola Task: Admin, PM, Karyawan boleh — Klien TIDAK --}}
-{{-- @if(!$isKlien)
-<a href="{{ route('task.index', $projek->id_projek) }}"
-   class="btn btn-sm"
-   style="background:#EEF2FF;color:#4F46E5;border:1px solid #C7D2FE;border-radius:8px;width:36px;height:36px;display:inline-flex;align-items:center;justify-content:center;font-size:16px;transition:all 0.2s;"
-   onmouseover="this.style.background='#4F46E5';this.style.color='white';"
-   onmouseout="this.style.background='#EEF2FF';this.style.color='#4F46E5';"
-   title="Kelola Task">
-    <i class="bx bx-task"></i>
-</a>
-@endif --}}
+            {{-- View Detail --}}
+            <button type="button" class="action-btn view" title="Lihat Detail"
+                onclick="openViewModal({{ $projek->id_projek }})">
+                <i class="bx bx-show"></i>
+            </button>
 
-                        {{-- View Detail: semua role boleh --}}
-                        <button type="button" class="action-btn view" title="Lihat Detail"
-                            onclick="openViewModal({{ $projek->id_projek }})">
-                            <i class="bx bx-show"></i>
-                        </button>
+            {{-- Edit: hanya Admin & PM --}}
+            @if($canEdit)
+            <button type="button" class="action-btn edit" title="Edit Project"
+                onclick="openEditModal({{ $projek->id_projek }})">
+                <i class="bx bx-edit-alt"></i>
+            </button>
+            @endif
 
-                        {{-- Edit: hanya Admin & PM --}}
-                        @if($canEdit)
-                        <button type="button" class="action-btn edit" title="Edit Project"
-                            onclick="openEditModal({{ $projek->id_projek }})">
-                            <i class="bx bx-edit-alt"></i>
-                        </button>
-                        @endif
-
-                        {{-- Hapus: hanya Admin --}}
-                        @if($canDelete)
-                        <button type="button" class="action-btn delete" title="Hapus Project"
-                            onclick="confirmDelete({{ $projek->id_projek }}, '{{ addslashes($projek->nama_projek) }}', '{{ route('master-data-projek.destroy', $projek->id_projek) }}')">
-                            <i class="bx bx-trash-alt"></i>
-                        </button>
-                        @endif
-                    </div>
-                </td>
+            {{-- Hapus: hanya Admin --}}
+            @if($canDelete)
+            <button type="button" class="action-btn delete" title="Hapus Project"
+                onclick="confirmDelete({{ $projek->id_projek }}, '{{ addslashes($projek->nama_projek) }}', '{{ route('master-data-projek.destroy', $projek->id_projek) }}')">
+                <i class="bx bx-trash-alt"></i>
+            </button>
+            @endif
+        @endif
+    </div>
+</td>
             </tr>
             @empty
             <tr>

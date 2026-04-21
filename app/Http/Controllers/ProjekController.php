@@ -32,11 +32,9 @@ class ProjekController extends Controller
 
         if ($user->isAdmin()) {
             // Admin: tampilkan semua project, tidak perlu filter
-
         } elseif ($user->isPM()) {
             // PM: hanya project yang dia buat (dibuat_oleh = id_user PM)
             $query->where('dibuat_oleh', $user->id_user);
-
         } elseif ($user->isKaryawan()) {
             // Karyawan: hanya project yang dia tergabung di projek_tim
             $idUser = (int) $user->id_user;

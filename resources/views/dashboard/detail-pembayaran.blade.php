@@ -32,7 +32,13 @@
     .pic-status-badge.done       { background:rgba(52,211,153,.2); color:#6EE7B7; }
     .pic-status-badge.pending    { background:rgba(156,163,175,.2); color:#D1D5DB; }
     .pic-status-badge.cancelled  { background:rgba(248,113,113,.2); color:#FCA5A5; }
+
+    /* ── TWO COL — default (admin/staff) ── */
     .detail-two-col { display:grid; grid-template-columns:420px 1fr; gap:24px; align-items:start; }
+
+    /* ── ONE COL — klien (no form) ── */
+    .detail-one-col { display:block; }
+
     .form-card { background:#fff; border-radius:14px; border:1.5px solid var(--ink-100,#F3F4F6); overflow:hidden; position:sticky; top:20px; }
     .form-card-header { background:linear-gradient(135deg,#F0F3FF 0%,#E8EBFF 100%); padding:18px 22px; border-bottom:1.5px solid #DDE2FF; display:flex; align-items:center; gap:10px; }
     .form-card-header i { font-size:18px; color:var(--p1,#4F46E5); }
@@ -119,6 +125,11 @@
     .status-sel.s-draft { background-color:#FFFBEB; border-color:#FDE68A; color:#92400E; }
     .status-sel.s-valid { background-color:#ECFDF5; border-color:#A7F3D0; color:#065F46; }
     .status-sel.s-batal { background-color:#FEF2F2; border-color:#FECACA; color:#991B1B; }
+    /* Status badge (read-only for klien) */
+    .status-badge-ro { display:inline-block; padding:4px 12px; border-radius:6px; font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:.04em; }
+    .status-badge-ro.s-draft { background:#FFFBEB; color:#92400E; border:1px solid #FDE68A; }
+    .status-badge-ro.s-valid { background:#ECFDF5; color:#065F46; border:1px solid #A7F3D0; }
+    .status-badge-ro.s-batal { background:#FEF2F2; color:#991B1B; border:1px solid #FECACA; }
     .btn-print-struk { background:none; border:1.5px solid var(--ink-200,#E5E7EB); border-radius:7px; width:30px; height:30px; display:inline-flex; align-items:center; justify-content:center; color:var(--ink-500,#6B7280); cursor:pointer; transition:all .2s; }
     .btn-print-struk:hover { border-color:var(--p1,#4F46E5); color:var(--p1,#4F46E5); background:rgba(79,70,229,.06); }
     .riwayat-empty { text-align:center; padding:48px 24px; color:var(--ink-400,#9CA3AF); }
@@ -150,7 +161,22 @@
     @media (max-width:576px)  { .pic-stats-grid { grid-template-columns:1fr 1fr; } .pic-header { flex-direction:column; } .project-info-card { padding:20px; } }
 </style>
 @endpush
+
 @section('content')
+@php
+    /*
+     * Cek apakah user yang login adalah klien.
+     * Sesuaikan kondisi ini dengan implementasi auth di project Anda.
+     * Contoh umum:
+     *   auth()->user()->hasRole('klien')          → jika pakai Spatie Permission
+     *   auth()->user()->role === 'klien'           → jika kolom role langsung
+     *   auth()->user()->level === 'klien'          → jika pakai kolom level
+     */
+    $isKlien = auth()->user()->role === 'klien';
+    // Ganti baris di atas sesuai sistem auth Anda. Contoh alternatif:
+    // $isKlien = auth()->user()->role === 'klien';
+@endphp
+
 <div class="detail-page-wrapper">
     {{-- ── BACK + TITLE ── --}}
     <div class="detail-back-bar">
@@ -159,6 +185,7 @@
         </a>
         <h1 class="detail-page-title">Detail Pembayaran Project</h1>
     </div>
+
     {{-- ── PROJECT INFO CARD ── --}}
     <div class="project-info-card">
         <div class="pic-header">
@@ -218,8 +245,126 @@
             </div>
         </div>
     </div>
-    {{-- ── TWO COLUMN ── --}}
+
+    {{-- ══════════════════════════════════════════════════════════
+         LAYOUT KONDISIONAL:
+         - Klien    → satu kolom penuh (hanya riwayat)
+         - Non-klien → dua kolom (form + riwayat)
+    ══════════════════════════════════════════════════════════ --}}
+
+    @if($isKlien)
+    {{-- ── KLIEN: FULL WIDTH RIWAYAT SAJA ── --}}
+    <div class="detail-one-col">
+        <div class="riwayat-card">
+            <div class="riwayat-card-header">
+                <div class="rh-left">
+                    <i class='bx bx-history'></i>
+                    <h3 class="rh-title">Riwayat Pembayaran</h3>
+                    <span class="rh-count" id="rh-count">{{ $riwayat->count() }}</span>
+                </div>
+                <div class="rh-summary">
+                    <div class="rh-sum-item valid">
+                        Terbayar (Valid): <strong>Rp {{ number_format($totalValid, 0, ',', '.') }}</strong>
+                    </div>
+                    @if($totalDraft > 0)
+                    <div class="rh-sum-item draft">
+                        Draft: <strong>Rp {{ number_format($totalDraft, 0, ',', '.') }}</strong>
+                    </div>
+                    @endif
+                </div>
+            </div>
+            <div class="riwayat-table-wrap" id="riwayatTableWrap">
+                @if($riwayat->isEmpty())
+                <div class="riwayat-empty">
+                    <i class='bx bx-receipt'></i>
+                    Belum ada riwayat pembayaran.
+                </div>
+                @else
+                <table class="riwayat-tbl">
+                    <thead>
+                        <tr>
+                            <th style="text-align:center;" class="col-no">NO</th>
+                            <th class="col-nominal">Nominal Bayar</th>
+                            <th class="col-sisa">Sisa</th>
+                            <th class="col-tgl">Tanggal</th>
+                            <th class="col-petugas">Petugas</th>
+                            <th class="col-metode">Metode</th>
+                            <th class="col-bukti">Bukti</th>
+                            <th class="col-status">Status</th>
+                            <th class="col-aksi">Aksi</th>
+                        </tr>
+                    </thead>
+                    <tbody id="riwayatTbody">
+                        @foreach($riwayat as $idx => $item)
+                        <tr id="row-{{ $item->id_pembayaran }}">
+                            <td class="col-no" style="text-align:center;color:var(--ink-400);">{{ $idx + 1 }}</td>
+                            <td class="col-nominal">
+                                <div class="td-nominal">Rp {{ number_format($item->jumlah_bayar, 0, ',', '.') }}</div>
+                                <span class="td-kode">{{ $item->kode_pembayaran }}</span>
+                            </td>
+                            <td class="col-sisa">
+                                @php $sisa = $sisaMap[$item->id_pembayaran] ?? 0; @endphp
+                                <span class="td-sisa {{ $sisa <= 0 ? 'hijau' : 'merah' }}">
+                                    Rp {{ number_format($sisa, 0, ',', '.') }}
+                                </span>
+                            </td>
+                            <td class="col-tgl">
+                                <span class="td-text-sm">
+                                @php
+                                    $tgl = $item->tanggal_bayar instanceof \Carbon\Carbon
+                                        ? $item->tanggal_bayar
+                                        : \Carbon\Carbon::parse($item->tanggal_bayar);
+                                @endphp
+                                {{ $tgl->format('d M Y') }}
+                                </span>
+                            </td>
+                            <td class="col-petugas">
+                                <span class="td-text-sm">{{ optional($item->petugas)->nama ?? '—' }}</span>
+                            </td>
+                            <td class="col-metode">
+                                <span class="td-text-sm">{{ optional($item->metode)->nama_metode ?? '—' }}</span>
+                            </td>
+                            <td class="col-bukti">
+                                @if($item->bukti_bayar)
+                                    @php $ext = strtolower(pathinfo($item->bukti_bayar, PATHINFO_EXTENSION)); @endphp
+                                    @if(in_array($ext, ['jpg','jpeg','png','webp']))
+                                        <img src="{{ asset('storage/' . $item->bukti_bayar) }}"
+                                             class="bukti-thumb"
+                                             onclick="openLightbox('{{ asset('storage/' . $item->bukti_bayar) }}')"
+                                             alt="Bukti Pembayaran">
+                                    @else
+                                        <a href="{{ asset('storage/' . $item->bukti_bayar) }}" target="_blank" class="bukti-pdf-link" title="Lihat PDF">
+                                            <i class='bx bxs-file-pdf'></i>
+                                        </a>
+                                    @endif
+                                @else
+                                    <span style="color:var(--ink-300);font-size:11px;">—</span>
+                                @endif
+                            </td>
+                            <td class="col-status">
+                                {{-- Klien hanya melihat status, tidak bisa mengubah --}}
+                                <span class="status-badge-ro s-{{ $item->status }}">
+                                    {{ ucfirst($item->status) }}
+                                </span>
+                            </td>
+                            <td class="col-aksi" style="text-align:center;">
+                                <button class="btn-print-struk" onclick="cetakStruk({{ $item->id_pembayaran }})" title="Cetak A4">
+                                    <i class='bx bx-printer'></i>
+                                </button>
+                            </td>
+                        </tr>
+                        @endforeach
+                    </tbody>
+                </table>
+                @endif
+            </div>
+        </div>
+    </div>
+
+    @else
+    {{-- ── ADMIN / STAFF: DUA KOLOM (FORM + RIWAYAT) ── --}}
     <div class="detail-two-col">
+
         {{-- ── FORM INPUT PEMBAYARAN ── --}}
         <div class="form-card" id="formCard">
             <div class="form-card-header">
@@ -296,6 +441,7 @@
             </div>
             @endif
         </div>
+
         {{-- ── RIWAYAT PEMBAYARAN ── --}}
         <div class="riwayat-card">
             <div class="riwayat-card-header">
@@ -409,15 +555,22 @@
                 @endif
             </div>
         </div>
+
     </div>
+    @endif
+    {{-- END role check --}}
+
 </div>
+
 {{-- TOAST --}}
 <div class="dp-toast" id="dpToast"><i class='bx bx-check-circle'></i> <span id="dpToastMsg"></span></div>
+
 {{-- LIGHTBOX --}}
 <div class="lightbox-overlay" id="lightboxOverlay" onclick="closeLightbox()">
     <button class="lightbox-close" onclick="closeLightbox()"><i class='bx bx-x'></i></button>
     <img src="" class="lightbox-img" id="lightboxImg" onclick="event.stopPropagation()">
 </div>
+
 {{-- MODAL CETAK RIWAYAT --}}
 <div class="cetak-overlay" id="cetakOverlay" onclick="tutupModalCetak(event)">
     <div class="cetak-modal">
@@ -439,13 +592,16 @@
     </div>
 </div>
 @endsection
+
 @push('scripts')
 <script>
 const PROJEK_ID  = {{ $projek->id_projek }};
 const CSRF_TOKEN = '{{ csrf_token() }}';
 const SISA_AWAL  = {{ $projek->sisa_tanggungan }};
+const IS_KLIEN   = {{ $isKlien ? 'true' : 'false' }};
 let sisaTerkini  = SISA_AWAL;
 let cetakHtml    = '';
+
 /* ── Helpers ── */
 function fRp(n) { return 'Rp ' + Number(n||0).toLocaleString('id-ID'); }
 function fDate(str) {
@@ -461,6 +617,7 @@ function formatRibuan(el) {
 function getNominalRaw() {
     return parseInt((document.getElementById('inputNominal')?.value||'0').replace(/\D/g,''))||0;
 }
+
 /* ── Toast ── */
 function showToast(msg, type='success') {
     const t = document.getElementById('dpToast');
@@ -470,6 +627,7 @@ function showToast(msg, type='success') {
     clearTimeout(t._tmr);
     t._tmr = setTimeout(() => t.classList.remove('show'), 3800);
 }
+
 /* ── Lightbox ── */
 function openLightbox(src) {
     document.getElementById('lightboxImg').src = src;
@@ -478,6 +636,7 @@ function openLightbox(src) {
 function closeLightbox() {
     document.getElementById('lightboxOverlay').classList.remove('open');
 }
+
 /* ── UPLOAD BUKTI dengan Image Preview ── */
 function onBuktiChange(input) {
     if (!input.files?.[0]) return;
@@ -538,8 +697,10 @@ function handleDrop(e) {
     input.files = dt.files;
     onBuktiChange(input);
 }
-/* ── SIMPAN PEMBAYARAN ── */
+
+/* ── SIMPAN PEMBAYARAN (hanya untuk non-klien) ── */
 function simpanPembayaran() {
+    if (IS_KLIEN) return; // guard tambahan
     const nominal   = getNominalRaw();
     const tanggal   = document.getElementById('inputTanggal')?.value;
     const metode    = document.getElementById('inputMetode')?.value;
@@ -599,7 +760,8 @@ function simpanPembayaran() {
         }
     });
 }
-/* ── Upload Bukti di Baris Riwayat ── */
+
+/* ── Upload Bukti di Baris Riwayat (hanya non-klien) ── */
 function uploadBuktiRow(input, idPembayaran) {
     if (!input.files?.[0]) return;
     const file = input.files[0];
@@ -619,6 +781,7 @@ function uploadBuktiRow(input, idPembayaran) {
     })
     .catch(() => showToast('Koneksi error.', 'error'));
 }
+
 /* ── Refresh Riwayat AJAX ── */
 function refreshRiwayat() {
     fetch('/pembayaran-projek/' + PROJEK_ID + '/riwayat')
@@ -630,20 +793,35 @@ function refreshRiwayat() {
         if (el) el.textContent = data.riwayat.length;
     });
 }
+
 function renderRiwayat(list) {
     const wrap = document.getElementById('riwayatTableWrap');
     if (!list || !list.length) {
         wrap.innerHTML = `<div class="riwayat-empty"><i class='bx bx-receipt'></i>Belum ada riwayat pembayaran.</div>`;
         return;
     }
-    const stOps = (r) => ['draft','valid','batal'].map(s =>
-        `<option value="${s}" ${r.status===s?'selected':''}>${s.charAt(0).toUpperCase()+s.slice(1)}</option>`
-    ).join('');
+
+    /* Status cell — select untuk admin/staff, badge read-only untuk klien */
+    const statusCell = (r) => {
+        if (IS_KLIEN) {
+            const cls = r.status === 'valid' ? 's-valid' : (r.status === 'batal' ? 's-batal' : 's-draft');
+            return `<span class="status-badge-ro ${cls}">${r.status.charAt(0).toUpperCase()+r.status.slice(1)}</span>`;
+        }
+        const stOps = ['draft','valid','batal'].map(s =>
+            `<option value="${s}" ${r.status===s?'selected':''}>${s.charAt(0).toUpperCase()+s.slice(1)}</option>`
+        ).join('');
+        return `<select class="status-sel s-${r.status}" data-id="${r.id_pembayaran}" onchange="updateStatus(this)">${stOps}</select>`;
+    };
+
+    /* Bukti cell — klien hanya lihat, non-klien bisa upload */
     const buktiCell = (r) => {
         if (r.bukti_url) {
             return /\.(jpg|jpeg|png|webp)$/i.test(r.bukti_url)
                 ? `<img src="${r.bukti_url}" class="bukti-thumb" onclick="openLightbox('${r.bukti_url}')" alt="Bukti">`
                 : `<a href="${r.bukti_url}" target="_blank" class="bukti-pdf-link" title="Lihat PDF"><i class='bx bxs-file-pdf'></i></a>`;
+        }
+        if (IS_KLIEN) {
+            return `<span style="color:var(--ink-300);font-size:11px;">—</span>`;
         }
         return `<label class="btn-upload-bukti-row" title="Upload Bukti">
             <i class='bx bx-upload'></i>
@@ -651,6 +829,7 @@ function renderRiwayat(list) {
                    onchange="uploadBuktiRow(this,${r.id_pembayaran})">
         </label>`;
     };
+
     const rows = list.map((r, i) => `
         <tr id="row-${r.id_pembayaran}">
             <td class="col-no" style="text-align:center;color:#9CA3AF;">${i+1}</td>
@@ -663,11 +842,7 @@ function renderRiwayat(list) {
             <td class="col-petugas"><span class="td-text-sm">${r.nama_petugas}</span></td>
             <td class="col-metode"><span class="td-text-sm">${r.nama_metode}</span></td>
             <td class="col-bukti">${buktiCell(r)}</td>
-            <td class="col-status">
-                <select class="status-sel s-${r.status}" data-id="${r.id_pembayaran}" onchange="updateStatus(this)">
-                    ${stOps(r)}
-                </select>
-            </td>
+            <td class="col-status">${statusCell(r)}</td>
             <td class="col-aksi" style="text-align:center;">
                 <button class="btn-print-struk" onclick="cetakStruk(${r.id_pembayaran})" title="Cetak A4">
                     <i class='bx bx-printer'></i>
@@ -675,6 +850,7 @@ function renderRiwayat(list) {
             </td>
         </tr>`
     ).join('');
+
     wrap.innerHTML = `
         <table class="riwayat-tbl">
             <thead>
@@ -693,8 +869,10 @@ function renderRiwayat(list) {
             <tbody id="riwayatTbody">${rows}</tbody>
         </table>`;
 }
-/* ── Update Status ── */
+
+/* ── Update Status (hanya non-klien) ── */
 function updateStatus(sel) {
+    if (IS_KLIEN) return;
     const id         = sel.dataset.id;
     const statusBaru = sel.value;
     const statusLama = (sel.className.match(/s-(\w+)/) || [])[1];
@@ -734,6 +912,7 @@ function updateStatus(sel) {
     })
     .finally(() => { sel.disabled = false; });
 }
+
 /* ═══════════════════════════════════════════════
    CETAK STRUK — Format A4 Formal
    ═══════════════════════════════════════════════ */
@@ -752,7 +931,6 @@ function cetakStruk(id) {
         const pct = s.nominal_projek > 0
             ? Math.min(100, Math.round(((s.nominal_projek - s.sisa_setelah) / s.nominal_projek) * 100))
             : 0;
-        /* ✅ FIX: gunakan s.perusahaan (nama PT), bukan s.perusahaan_nama (nama perwakilan) */
         const html = `<!DOCTYPE html><html lang="id"><head><meta charset="UTF-8">
 <title>Bukti Pembayaran — ${s.kode_pembayaran}</title>
 <style>
@@ -918,6 +1096,7 @@ ${s.bukti_url ? `<div class="bukti-section">
     })
     .catch(() => showToast('Gagal memuat struk.', 'error'));
 }
+
 /* ═══════════════════════════════════════════════
    CETAK RIWAYAT — Format A4 Landscape Formal
    ═══════════════════════════════════════════════ */
@@ -952,6 +1131,7 @@ function bukaModalCetak() {
     })
     .catch(() => { body.innerHTML = '<p style="color:red;padding:20px">Gagal memuat data.</p>'; });
 }
+
 function buildCetakRiwayatA4(p, riwayat, dicetak) {
     const pct = p.nominal_projek > 0
         ? Math.min(100, Math.round((p.total_terbayar / p.nominal_projek) * 100))
@@ -1080,6 +1260,7 @@ table.rw tbody tr:last-child td { border-bottom:none; }
 <script>window.onload=function(){window.print();};<\/script>
 </body></html>`;
 }
+
 function printRiwayat() {
     if (!cetakHtml) return;
     const w = window.open('', '_blank', 'width=1100,height=750');

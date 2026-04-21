@@ -63,9 +63,13 @@
                             </a>
                         </div>
                         <!-- /Logo -->
+                        <h4 class="mb-2">Reset Password Baru</h4>
 
-                        <h4 class="mb-2">Reset Password Baru 🔒</h4>
-                        <p class="mb-4">Masukkan password baru anda di bawah ini</p>
+                        {{-- Tampilkan info email yang sedang direset --}}
+                        <p class="mb-4">
+                            Buat password baru untuk akun
+                            <strong>{{ $request->email }}</strong>
+                        </p>
 
                         @if ($errors->any())
                             <div class="alert alert-danger alert-dismissible mb-3" role="alert">
@@ -83,27 +87,10 @@
 
                         <form id="formResetPassword" class="mb-3" action="{{ route('password.store') }}" method="POST">
                             @csrf
-                            <!-- Token -->
-                            <input type="hidden" name="token" value="{{ $request->route('token') }}">
 
-                            <!-- Email -->
-                            <div class="mb-3">
-                                <label for="email" class="form-label">Email</label>
-                                <input
-                                    type="email"
-                                    class="form-control @error('email') is-invalid @enderror"
-                                    id="email"
-                                    name="email"
-                                    value="{{ old('email', $request->email) }}"
-                                    placeholder="Masukkan email anda"
-                                    required
-                                    autofocus
-                                    autocomplete="username"
-                                />
-                                @error('email')
-                                    <div class="invalid-feedback">{{ $message }}</div>
-                                @enderror
-                            </div>
+                            {{-- Token & Email sebagai hidden input, otomatis terisi dari link --}}
+                            <input type="hidden" name="token" value="{{ $request->route('token') }}">
+                            <input type="hidden" name="email" value="{{ $request->email }}">
 
                             <!-- Password Baru -->
                             <div class="mb-3 form-password-toggle">
@@ -116,6 +103,7 @@
                                         name="password"
                                         placeholder="&#xb7;&#xb7;&#xb7;&#xb7;&#xb7;&#xb7;&#xb7;&#xb7;&#xb7;&#xb7;&#xb7;&#xb7;"
                                         required
+                                        autofocus
                                         autocomplete="new-password"
                                     />
                                     <span class="input-group-text cursor-pointer" onclick="togglePassword('password', 'toggleIcon1')">

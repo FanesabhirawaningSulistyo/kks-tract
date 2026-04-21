@@ -47,7 +47,8 @@ class NewPasswordController extends Controller
         );
 
         if ($status == Password::PASSWORD_RESET) {
-            return redirect()->route('login')->with('status', 'Password berhasil direset! Silakan login dengan password baru Anda.');
+            return redirect()->route('login')->with('status', 
+            'Password berhasil direset! Silakan login dengan password baru Anda.');
         }
 
         return back()
