@@ -17,7 +17,6 @@ class UserController extends Controller
         $query = User::with(['jobRole', 'perusahaan']);
 
         if ($request->filled('role'))     $query->where('role', $request->role);
-        if ($request->filled('job_role')) $query->where('id_job_role', $request->job_role);
 
         if ($request->filled('search')) {
             $search = $request->search;

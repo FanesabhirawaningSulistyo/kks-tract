@@ -23,7 +23,7 @@ document.addEventListener('DOMContentLoaded', function() {
 <div class="data-card">
     <div class="card-top">
         <div class="counter-group">
-            <a href="javascript:void(0)" onclick="filterByJobRole('')" class="counter-pill active" data-jobrole="">
+            <a href="javascript:void(0)" onclick="filterByJobRole('')" class="counter-pill" data-jobrole="">
                 <span class="pill-count">{{ $totalCount ?? 0 }}</span><span>Semua User</span>
             </a>
             @foreach($allCounts as $c)
@@ -442,7 +442,22 @@ let currentJobRole = '', currentRole = '', currentSearch = '';
 let searchTimeout = null, currentViewBtn = null;
 
 document.addEventListener('DOMContentLoaded', function () {
-    initializeData(); loadColumnSettings(); initializeEventListeners(); renderTable();
+    initializeData();
+    loadColumnSettings();
+    initializeEventListeners();
+
+    // Baca job_role dari URL (misal datang dari halaman Job Role)
+    const urlJobRole = new URLSearchParams(window.location.search).get('job_role') || '';
+    if (urlJobRole) {
+        currentJobRole = urlJobRole;
+    }
+
+    // Set active pill sesuai currentJobRole
+    document.querySelectorAll('.counter-pill').forEach(p => {
+        p.classList.toggle('active', p.dataset.jobrole === currentJobRole);
+    });
+
+    applyFilters(); // applyFilters() sudah memanggil renderTable() di dalamnya
 });
 
 function initializeData() {

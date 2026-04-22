@@ -186,6 +186,40 @@
 </div>
 @endif
 @if($errors->any())
+{{-- BANNER INFO saat filter kategori aktif --}}
+@if(request('id_kategori_projek'))
+@php
+    $activeKat = $kategoris->firstWhere('id_kategori_projek', request('id_kategori_projek'));
+@endphp
+@if($activeKat)
+<div style="
+    display:flex; align-items:center; justify-content:space-between;
+    background:var(--bs-primary-bg-subtle, #EFF6FF);
+    border:1px solid #BFDBFE; border-radius:10px;
+    padding:10px 16px; margin-bottom:16px; gap:12px;
+">
+    <div style="display:flex; align-items:center; gap:10px;">
+        <i class='bx bx-filter-alt' style="font-size:18px; color:#3B82F6;"></i>
+        <span style="font-size:13px; color:#1E40AF;">
+            Menampilkan project untuk kategori:
+            <strong>{{ $activeKat->nama_kategori }}</strong>
+        </span>
+    </div>
+    <a href="{{ route('master-data-projek.index') }}"
+       style="
+           display:inline-flex; align-items:center; gap:5px;
+           font-size:12px; font-weight:600; color:#3B82F6;
+           text-decoration:none; padding:4px 10px;
+           border:1px solid #BFDBFE; border-radius:6px;
+           background:white; white-space:nowrap;
+       "
+       onmouseover="this.style.background='#EFF6FF'"
+       onmouseout="this.style.background='white'">
+        <i class='bx bx-x'></i> Hapus Filter
+    </a>
+</div>
+@endif
+@endif
 <div class="alert-danger-custom">
     <strong><i class="bx bx-error-circle"></i> Terdapat kesalahan:</strong>
     <ul class="mb-0 mt-1 ps-3">

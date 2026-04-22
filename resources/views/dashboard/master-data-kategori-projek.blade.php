@@ -115,13 +115,21 @@
                             </div>
                         </div>
                     </td>
-                    <td class="col-projek">
-                        @if($item->projek_count > 0)
-                            <span class="emp-count has-emp"><i class='bx bx-folder' style="font-size:13px;"></i> {{ $item->projek_count }} projek</span>
-                        @else
-                            <span class="emp-count no-emp"><i class='bx bx-folder' style="font-size:13px;"></i> 0 projek</span>
-                        @endif
-                    </td>
+                    {{-- GANTI BAGIAN INI (col-projek) --}}
+<td class="col-projek">
+    @if($item->projek_count > 0)
+        <a href="{{ route('master-data-projek.index', ['id_kategori_projek' => $item->id_kategori_projek]) }}"
+           class="emp-count has-emp"
+           style="text-decoration:none; cursor:pointer;"
+           title="Lihat {{ $item->projek_count }} projek dalam kategori ini">
+            <i class='bx bx-folder' style="font-size:13px;"></i> {{ $item->projek_count }} projek
+        </a>
+    @else
+        <span class="emp-count no-emp">
+            <i class='bx bx-folder' style="font-size:13px;"></i> 0 projek
+        </span>
+    @endif
+</td>
                     <td class="col-status">
                         @if($item->status)
                             <span class="status-pill pill-active"><span class="dot"></span>Aktif</span>
