@@ -219,10 +219,8 @@ class PerusahaanController extends Controller
                 $logoPath = $logo->storeAs('logos', $logoName, 'public');
             }
 
-            // Tentukan status baru (default pakai nilai lama jika tidak dikirim)
-            $statusBaru = $request->has('status')
-                ? (bool) $request->status
-                : (bool) $perusahaan->status;
+            // Status TIDAK bisa diubah dari sini — hanya via Master Data User
+            $statusBaru = (bool) $perusahaan->getRawOriginal('status');
 
             // ============================================================
             // 1. Update User (akun login perusahaan)
@@ -234,7 +232,6 @@ class PerusahaanController extends Controller
                     'nama'   => $request->nama_perusahaan,
                     'email'  => $request->email_perusahaan,
                     'no_hp'  => $request->telepon_perusahaan,
-                    'status' => $statusBaru,   // ← sinkronisasi status ke user
                 ];
                 if ($request->filled('password_perusahaan')) {
                     $userData['password'] = Hash::make($request->password_perusahaan);
@@ -257,7 +254,7 @@ class PerusahaanController extends Controller
                     'telepon_perwakilan' => $request->telepon_perwakilan,
                     'logo_perusahaan'    => $logoPath,
                     'alamat_perusahaan'  => $request->alamat_perusahaan,
-                    'status'             => $statusBaru,   // ← simpan status ke perusahaan
+                   
                 ]);
             });
 

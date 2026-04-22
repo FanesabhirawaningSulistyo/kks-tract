@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\User;
 use App\Models\JobRole;
 use App\Models\Perusahaan;
+use App\Models\Projek;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Storage;
@@ -15,9 +16,7 @@ class UserController extends Controller
     public function index(Request $request)
     {
         $query = User::with(['jobRole', 'perusahaan']);
-
         if ($request->filled('role'))     $query->where('role', $request->role);
-
         if ($request->filled('search')) {
             $search = $request->search;
             $query->where(function ($q) use ($search) {
@@ -27,50 +26,33 @@ class UserController extends Controller
                     ->orWhereHas('jobRole', fn($q) => $q->where('nama_job_role', 'like', "%{$search}%"));
             });
         }
-
         $jobRoles   = JobRole::where('status', true)->orderBy('nama_job_role')->get();
         $totalCount = User::count();
         $allCounts  = $this->getJobRoleCounts($jobRoles);
-
         $query->latest('updated_at');
         $users = $query->get();
-
         foreach ($users as $user) {
             $user->jobRoleColor = $user->jobRole
                 ? $this->getJobRoleColor($user->jobRole->nama_job_role)
                 : 'purple-1';
         }
-
         return view('dashboard.master-data-users', compact('users', 'jobRoles', 'totalCount', 'allCounts'));
     }
 
-    /* ─────────────────────────────────────────────────────────────────
-     | Tentukan id_job_role otomatis berdasarkan role:
-     |   klien    → null           (klien tidak punya job role)
-     |   admin    → job role 'Admin'
-     |   PM       → job role 'Project Manager'
-     |   karyawan → pakai pilihan user dari form (wajib diisi)
-     ───────────────────────────────────────────────────────────────── */
     private function resolveJobRole(string $role, $formJobRoleId): ?int
     {
         if ($role === 'klien') return null;
-
         if ($role === 'karyawan') return $formJobRoleId ?: null;
-
         $namaCari = match ($role) {
             'admin' => 'Admin',
             'PM'    => 'Project Manager',
             default => null,
         };
-
         if (!$namaCari) return null;
-
-        // Cari job role, buat baru jika belum ada
         $jr = JobRole::whereRaw('LOWER(nama_job_role) = ?', [strtolower($namaCari)])->first();
         if (!$jr) {
             $jr = JobRole::create(['nama_job_role' => $namaCari, 'status' => true]);
         }
-
         return $jr->id_job_role;
     }
 
@@ -80,7 +62,6 @@ class UserController extends Controller
             ->whereNotNull('id_job_role')
             ->groupBy('id_job_role')
             ->pluck('count', 'id_job_role');
-
         return $jobRoles->map(fn($jr) => [
             'id'    => $jr->id_job_role,
             'name'  => $jr->nama_job_role,
@@ -104,7 +85,7 @@ class UserController extends Controller
             'nama'        => 'required|string|max:100',
             'email'       => 'required|email|unique:users,email',
             'password'    => 'required|min:8',
-            'role'        => 'required|in:admin,PM,karyawan,klien',  // ✅ PM uppercase
+            'role'        => 'required|in:admin,PM,karyawan,klien',
             'id_job_role' => 'nullable|exists:job_roles,id_job_role',
             'no_hp'       => 'nullable|string|max:20',
             'foto'        => 'nullable|image|mimes:jpeg,png,jpg|max:2048',
@@ -153,7 +134,7 @@ class UserController extends Controller
             'nama'        => 'required|string|max:100',
             'email'       => 'required|email|unique:users,email,' . $id . ',id_user',
             'password'    => 'nullable|min:8',
-            'role'        => 'required|in:admin,PM,karyawan,klien',  // ✅ PM uppercase
+            'role'        => 'required|in:admin,PM,karyawan,klien',
             'id_job_role' => 'nullable|exists:job_roles,id_job_role',
             'no_hp'       => 'nullable|string|max:20',
             'foto'        => 'nullable|image|mimes:jpeg,png,jpg|max:2048',
@@ -164,25 +145,38 @@ class UserController extends Controller
             DB::beginTransaction();
 
             $oldPhoto   = $user->foto;
-            $statusLama = $user->status;
+            $statusLama = (bool) $user->status;
             $statusBaru = (bool) $validated['status'];
 
+            // ✅ Cek projek sebelum non-aktifkan klien
+            if ($user->role === 'klien' && $statusLama === true && $statusBaru === false) {
+                $perusahaan = Perusahaan::where('id_user_perusahaan', $user->id_user)->first();
+                if ($perusahaan) {
+                    $jumlahProjek = Projek::where('id_perusahaan', $perusahaan->id_perusahaan)->count();
+                    if ($jumlahProjek > 0) {
+                        DB::rollBack();
+                        return redirect()->back()
+                            ->with('error', "Perusahaan tidak dapat dinon-aktifkan karena masih memiliki {$jumlahProjek} projek aktif terkait. Selesaikan atau hapus projek terlebih dahulu.");
+                    }
+                }
+            }
+
+            // Handle foto upload
             if ($request->hasFile('foto')) {
                 $validated['foto'] = $request->file('foto')->store('users', 'public');
                 if ($oldPhoto) Storage::disk('public')->delete($oldPhoto);
             }
 
+            // Handle password
             if (!empty($validated['password'])) {
                 $validated['password'] = Hash::make($validated['password']);
             } else {
                 unset($validated['password']);
             }
 
-            // Klien: jangan ubah id_job_role sama sekali (biarkan nilai DB apa adanya)
-            // Admin/PM: auto-assign job role sesuai role
-            // Karyawan: pakai pilihan dari form
+            // Resolve job role
             if ($validated['role'] === 'klien') {
-                unset($validated['id_job_role']); // skip kolom ini, tidak di-update
+                unset($validated['id_job_role']); // jangan ubah job role klien
             } else {
                 $validated['id_job_role'] = $this->resolveJobRole(
                     $validated['role'],
@@ -192,7 +186,7 @@ class UserController extends Controller
 
             $user->update($validated);
 
-            // Sinkronisasi status ke perusahaan terkait (klien)
+            // ✅ Sinkronisasi status ke perusahaan terkait jika klien berubah status
             if ($user->role === 'klien' && $statusLama !== $statusBaru) {
                 $perusahaan = Perusahaan::where('id_user_perusahaan', $user->id_user)->first();
                 if ($perusahaan) {
@@ -202,11 +196,14 @@ class UserController extends Controller
 
             DB::commit();
 
+            // Pesan sukses dengan info status jika berubah
             $pesanStatus = '';
             if ($statusLama !== $statusBaru) {
                 $label       = $statusBaru ? 'Aktif' : 'Non-Aktif';
                 $pesanStatus = " Status diubah menjadi {$label}.";
-                if ($user->role === 'klien') $pesanStatus .= ' Status perusahaan terkait juga diperbarui.';
+                if ($user->role === 'klien') {
+                    $pesanStatus .= ' Status perusahaan terkait juga diperbarui.';
+                }
             }
 
             return redirect()->route('master-data-users.index')
@@ -228,6 +225,7 @@ class UserController extends Controller
     {
         try {
             DB::beginTransaction();
+
             $user = User::findOrFail($id);
 
             if ($user->role === 'klien') {
@@ -235,20 +233,21 @@ class UserController extends Controller
                 if ($perusahaan) {
                     DB::rollBack();
                     return redirect()->back()
-                        ->with('error', 'User tidak dapat dihapus karena masih terkait perusahaan. ' .
-                            'Hapus melalui Master Data Perusahaan.');
+                        ->with('error', 'User tidak dapat dihapus karena masih terkait perusahaan. Hapus melalui Master Data Perusahaan.');
                 }
             }
 
             if ($user->foto) Storage::disk('public')->delete($user->foto);
             $user->delete();
+
             DB::commit();
 
             return redirect()->route('master-data-users.index')
                 ->with('success', 'Data user berhasil dihapus!');
         } catch (\Exception $e) {
             DB::rollBack();
-            return redirect()->back()->with('error', 'Terjadi kesalahan: ' . $e->getMessage());
+            return redirect()->back()
+                ->with('error', 'Terjadi kesalahan: ' . $e->getMessage());
         }
     }
 }
