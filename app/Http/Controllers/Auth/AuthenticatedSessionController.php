@@ -30,7 +30,16 @@ class AuthenticatedSessionController extends Controller
             $request->session()->regenerate();
 
             // Redirect ke dashboard setelah login berhasil
-            return redirect()->route('dashboard');
+            $user = Auth::user();
+
+            $redirect = match ($user->role) {
+                'PM'       => route('dashboard.pm'),
+                'karyawan' => route('dashboard.pegawai'),
+                'klien'    => route('dashboard.klien'),
+                default    => route('dashboard'),   // admin
+            };
+
+            return redirect()->intended($redirect);
         } catch (ValidationException $e) {
             // Jika autentikasi gagal, redirect kembali dengan pesan error
             return back()->withErrors([

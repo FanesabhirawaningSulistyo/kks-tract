@@ -147,9 +147,30 @@
 .pdf-hasil-doc .icon { font-size: 20px; }
 .pdf-hasil-doc .name { font-size: 10px; font-weight: 700; color: #374151; word-break: break-all; font-family: 'Segoe UI',Arial,sans-serif; }
 .pdf-hasil-doc .type { font-size: 9px; color: #9CA3AF; margin-top: 2px; text-transform: uppercase; font-family: 'Segoe UI',Arial,sans-serif; }
-.pdf-empty-foto { background: #F9FAFB; border: 1px dashed #D1D5DB; border-radius: 3px; padding: 10px; text-align: center; font-size: 10px; color: #9CA3AF; font-style: italic; font-family: 'Segoe UI',Arial,sans-serif; }
+.pdf-empty-foto { background: #F9FAFB; border: 1px dashed #D1D5DB; border-radius: 3px; padding: 10px; text-align: center; font-size: 10px; color: #9CA3AF; font-family: 'Segoe UI',Arial,sans-serif; }
 .pdf-doc-footer { background: #1E2A3A; padding: 9px 28px; display: flex; justify-content: space-between; align-items: center; margin-top: auto; }
 .pdf-doc-footer span { font-size: 9px; color: #9CA3AF; font-family: 'Segoe UI',Arial,sans-serif; }
+.sd-input::placeholder,
+.sd-search-input::placeholder,
+.form-control-custom::placeholder,
+.fctrl::placeholder,
+.filter-input::placeholder {
+    font-style: normal;
+}
+
+/* Deskripsi singkat di tabel tidak miring */
+.project-desc-short {
+    font-style: normal !important;
+}
+
+/* Semua teks di halaman ini tidak miring (kecuali PDF) */
+.project-header-card *,
+.filter-section *,
+.table-container *,
+.modal *,
+.sd-wrap * {
+    font-style: normal;
+}
 </style>
 @endpush
 
@@ -700,13 +721,15 @@
                                     <div class="sd-search-bar"><i class="bx bx-search"></i><input type="text" class="sd-search-input" placeholder="Ketik untuk mencari..."></div>
                                     <div class="sd-option-none" data-value="" data-label="">— Tidak ada / Kosongkan —</div>
                                     @foreach($perusahaans as $p)
-                                    <div class="sd-option" data-value="{{ $p->id_perusahaan }}" data-label="{{ $p->nama_perwakilan }}{{ $p->nama_perusahaan ? ' – '.$p->nama_perusahaan : '' }}" data-sub="{{ $p->nama_perusahaan ?? '' }}">
-                                        <div class="sd-option-icon"><i class="bx bx-buildings"></i></div>
-                                        <div class="sd-option-main">
-                                            <span class="sd-option-label">{{ $p->nama_perwakilan }}</span>
-                                            @if($p->nama_perusahaan)<span class="sd-option-sub">{{ $p->nama_perusahaan }}</span>@endif
-                                        </div>
-                                    </div>
+                                   <div class="sd-option" data-value="{{ $p->id_perusahaan }}" 
+     data-label="{{ $p->nama_perusahaan ?? $p->nama_perwakilan }}{{ $p->nama_perwakilan ? ' – '.$p->nama_perwakilan : '' }}" 
+     data-sub="{{ $p->nama_perwakilan ?? '' }}">
+    <div class="sd-option-icon"><i class="bx bx-buildings"></i></div>
+    <div class="sd-option-main">
+        <span class="sd-option-label">{{ $p->nama_perusahaan ?? '—' }}</span>
+        @if($p->nama_perwakilan)<span class="sd-option-sub">{{ $p->nama_perwakilan }}</span>@endif
+    </div>
+</div>
                                     @endforeach
                                 </div>
                             </div>
@@ -876,13 +899,15 @@
                                     <div class="sd-search-bar"><i class="bx bx-search"></i><input type="text" class="sd-search-input" placeholder="Ketik untuk mencari..."></div>
                                     <div class="sd-option-none" data-value="" data-label="">— Tidak ada / Kosongkan —</div>
                                     @foreach($perusahaans as $p)
-                                    <div class="sd-option" data-value="{{ $p->id_perusahaan }}" data-label="{{ $p->nama_perwakilan }}{{ $p->nama_perusahaan ? ' – '.$p->nama_perusahaan : '' }}" data-sub="{{ $p->nama_perusahaan ?? '' }}">
-                                        <div class="sd-option-icon"><i class="bx bx-buildings"></i></div>
-                                        <div class="sd-option-main">
-                                            <span class="sd-option-label">{{ $p->nama_perwakilan }}</span>
-                                            @if($p->nama_perusahaan)<span class="sd-option-sub">{{ $p->nama_perusahaan }}</span>@endif
-                                        </div>
-                                    </div>
+                               <div class="sd-option" data-value="{{ $p->id_perusahaan }}" 
+     data-label="{{ $p->nama_perusahaan ?? $p->nama_perwakilan }}{{ $p->nama_perwakilan ? ' – '.$p->nama_perwakilan : '' }}" 
+     data-sub="{{ $p->nama_perwakilan ?? '' }}">
+    <div class="sd-option-icon"><i class="bx bx-buildings"></i></div>
+    <div class="sd-option-main">
+        <span class="sd-option-label">{{ $p->nama_perusahaan ?? '—' }}</span>
+        @if($p->nama_perwakilan)<span class="sd-option-sub">{{ $p->nama_perwakilan }}</span>@endif
+    </div>
+</div>
                                     @endforeach
                                 </div>
                             </div>
@@ -1370,8 +1395,8 @@ function _pdfBuildReport(projects, logoDataUrl, opts) {
             const key=m.nama||'—';
             if(!kMap[key]) kMap[key]={nama:key,role:m.job_role||m.jabatan||'—',projSet:new Set(),tasks:0,td:0,pr:0,dn:0};
             kMap[key].projSet.add(p.nama_projek);
-            const nd=(p.tasks||[]).filter(t=>t.status_progress!=='draft'&&t.id_tim===m.id_tim);
-            kMap[key].tasks+=nd.length;
+           const nd=(p.tasks||[]).filter(t=>t.status_progress!=='draft'&&+t.id_tim===+m.id_tim);
+           kMap[key].tasks+=nd.length;
             kMap[key].td+=nd.filter(t=>t.status_progress==='To Do').length;
             kMap[key].pr+=nd.filter(t=>t.status_progress==='In Progress').length;
             kMap[key].dn+=nd.filter(t=>t.status_progress==='done').length;
@@ -1460,7 +1485,7 @@ function _pdfBuildReport(projects, logoDataUrl, opts) {
                     <div style="width:32px;height:32px;border-radius:8px;background:linear-gradient(135deg,#696cff,#5145cd);color:white;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;flex-shrink:0;margin-top:2px;">${_pdfE(k.nama.substring(0,2).toUpperCase())}</div>
                     <div>
                         <div style="font-size:13px;font-weight:700;color:${PC.ink};">${_pdfE(k.nama)}</div>
-                        <div style="font-size:12px;color:${PC.purple};font-style:italic;margin-top:1px;">${_pdfE(k.role)}</div>
+                        <div style="font-size:12px;color:${PC.purple}; margin-top:1px;">${_pdfE(k.role)}</div>
                         <div style="font-size:12px;color:${PC.inkS};margin-top:4px;font-weight:600;">${k.projCount} project &nbsp;·&nbsp; ${tot} task</div>
                     </div>
                 </div>
@@ -1498,7 +1523,7 @@ function _pdfBuildReport(projects, logoDataUrl, opts) {
                 <div style="font-weight:700;font-size:13px;color:${PC.ink};line-height:1.4;">${_pdfE(p.nama_projek)}</div>
                 <div style="font-size:12px;color:${PC.inkS};margin-top:2px;">${_pdfE(p.perusahaan_pt||p.perusahaan_nama||'—')}</div>
                 <div style="margin-top:5px;"><span style="padding:2px 7px;border-radius:10px;font-size:11px;background:#F5F3FF;color:${PC.purple};font-weight:600;">${_pdfE(p.kategori_nama||'—')}</span></div>
-                <div style="margin-top:5px;font-size:12px;color:${PC.inkS};"><span style="color:#9CA3AF;">PM:</span> <strong style="color:${PC.ink};">${pmNama}</strong> <span style="color:#9CA3AF;font-style:italic;margin-left:4px;">${pmRole}</span></div>
+                <div style="margin-top:5px;font-size:12px;color:${PC.inkS};"><span style="color:#9CA3AF;">PM:</span> <strong style="color:${PC.ink};">${pmNama}</strong> <span style="color:#9CA3AF; margin-left:4px;">${pmRole}</span></div>
             </td>
             <td style="padding:9px 10px;border-bottom:1px solid ${PC.grayLn};text-align:center;white-space:nowrap;">
                 <span style="padding:3px 9px;border-radius:12px;font-size:12px;font-weight:700;background:${st.bg};color:${st.color};display:inline-block;margin-bottom:8px;">${_STLBL[p.status]||p.status}</span>
@@ -1606,7 +1631,7 @@ drawDonut('cvPie2',[{v:${gAppr},c:'${PC.greenL}',l:'Disetujui'},{v:${gRev},c:'${
     </div>
     <div style="padding:9px 28px 14px;border-top:1px solid #2D3F52;display:flex;justify-content:space-between;">
         <div style="font-size:12px;color:#9CA3AF;">Disiapkan: <strong style="color:#D1D5DB;">${PDF_COMPANY}</strong></div>
-        <div style="font-size:11px;color:#6B7280;font-style:italic;">Dokumen rahasia — penggunaan internal</div>
+        <div style="font-size:11px;color:#6B7280; ">Dokumen rahasia — penggunaan internal</div>
     </div>
 </div>
 <div class="sec" style="padding-top:22px;">${SH('I','Ringkasan Eksekutif',filterDesc)}${kpiHtml}${barMonthHtml}${pieHtml}${tblKaryawan}</div>
@@ -1664,14 +1689,9 @@ function _injectExportModal() {
                     ${[...new Set(Object.values(projekData).map(p=>p.kategori_nama).filter(Boolean))].sort().map(k=>`<option value="${k}">${k}</option>`).join('')}
                 </select>
             </div>
-            <div id="pdfPreviewInfo" style="background:#F0FDF4;border:1px solid #BBF7D0;border-radius:8px;padding:11px 14px;font-size:12px;color:#166534;margin-bottom:18px;display:flex;align-items:center;gap:8px;">
-                <svg width="16" height="16" fill="none" viewBox="0 0 24 24" style="flex-shrink:0;"><circle cx="12" cy="12" r="10" stroke="#16A34A" stroke-width="2"/><path d="M12 8v4M12 16h.01" stroke="#16A34A" stroke-width="2" stroke-linecap="round"/></svg>
-                <span id="pdfPreviewTxt">Klik <strong>Preview</strong> untuk melihat jumlah project yang akan diekspor.</span>
-            </div>
         </div>
         <div style="padding:0 22px 20px;display:flex;gap:10px;justify-content:flex-end;">
             <button onclick="hideExportModal()" style="padding:9px 20px;border-radius:8px;border:1.5px solid #D1D5DB;background:white;color:#4B5563;font-size:13px;font-weight:600;cursor:pointer;font-family:'Segoe UI',sans-serif;">Batal</button>
-            <button onclick="_pdfPreviewFilter()" style="padding:9px 20px;border-radius:8px;border:none;background:#F3F4F6;color:#1C1F2A;font-size:13px;font-weight:600;cursor:pointer;font-family:'Segoe UI',sans-serif;">Preview</button>
             <button onclick="doExportPDF()" style="padding:9px 22px;border-radius:8px;border:none;background:#1E2A3A;color:white;font-size:13px;font-weight:700;cursor:pointer;font-family:'Segoe UI',sans-serif;display:flex;align-items:center;gap:7px;"><svg width="15" height="15" viewBox="0 0 24 24" fill="none"><path d="M12 16l-4-4h2.5V4h3v8H16l-4 4z" fill="white"/><path d="M4 18h16v2H4v-2z" fill="white"/></svg>Export PDF</button>
         </div>
     </div>`;
@@ -1730,8 +1750,7 @@ function showExportModal() {
     _injectExportModal();
     document.getElementById('pdfExportModalOverlay').style.display = 'flex';
     const txt = document.getElementById('pdfPreviewTxt');
-    if (txt) txt.innerHTML = 'Klik <strong>Preview</strong> untuk melihat jumlah project yang akan diekspor.';
-}
+    }
 function hideExportModal() {
     const el = document.getElementById('pdfExportModalOverlay');
     if (el) el.style.display = 'none';
@@ -1916,7 +1935,7 @@ function openViewModal(id) {
             ? `<a href="/storage/${p.dokumen_perjanjian}" target="_blank"><img src="/storage/${p.dokumen_perjanjian}" style="max-width:100%;max-height:200px;border-radius:8px;border:1px solid var(--ink-200);cursor:pointer;"></a>`
             : `<a href="/storage/${p.dokumen_perjanjian}" target="_blank" class="file-btn"><i class="bx bx-file-blank"></i> Preview Dokumen</a>`;
     } else {
-        document.getElementById('view_dokumen').innerHTML = `<span style="color:var(--ink-300);font-style:italic;font-size:13px;">Belum ada dokumen</span>`;
+        document.getElementById('view_dokumen').innerHTML = `<span style="color:var(--ink-300); font-size:13px;">Belum ada dokumen</span>`;
     }
 
     // Tombol edit di modal view, hanya tampil jika bisa edit
@@ -2096,7 +2115,7 @@ function _calcTaskStats(tasks) {
     return { tot,done,prog,todo,wDone,wProg,wTodo,totalWeight,appr,approvedWeight,pct,saApproved,saRevisi,saReview,saNull,wSaApproved,wSaRevisi,wSaReview };
 }
 
-const PDF_PRINT_CSS_P = `*{box-sizing:border-box;margin:0;padding:0;}body{font-family:'Georgia','Times New Roman',serif;background:#F3F4F6;padding:20px;}.pdf-wrap{max-width:794px;margin:0 auto;color:#1F2937;background:white;border:1px solid #D1D5DB;}.pdf-letterhead{background:#1E2A3A;padding:20px 28px 18px;display:flex;justify-content:space-between;align-items:flex-start;}.pdf-letterhead-left .doc-type{font-size:9px;text-transform:uppercase;letter-spacing:.15em;color:#9CA3AF;margin-bottom:5px;font-family:'Segoe UI',Arial,sans-serif;}.pdf-letterhead-left .doc-title{font-size:18px;font-weight:700;color:white;line-height:1.25;}.pdf-letterhead-left .doc-sub{font-size:11px;color:#9CA3AF;margin-top:4px;font-family:'Segoe UI',Arial,sans-serif;}.pdf-letterhead-right{text-align:right;flex-shrink:0;}.pdf-letterhead-right .doc-num{font-size:10px;color:#9CA3AF;font-family:'Courier New',monospace;margin-bottom:4px;}.pdf-letterhead-right .doc-date{font-size:11px;color:#D1D5DB;font-family:'Segoe UI',Arial,sans-serif;font-weight:500;}.pdf-rule{border:none;border-top:2px solid #374151;margin:0;}.pdf-project-info{padding:16px 28px;background:#F9FAFB;border-bottom:1px solid #E5E7EB;display:grid;grid-template-columns:1fr 1fr;gap:0;}.pdf-info-col{padding:0 12px;}.pdf-info-col:first-child{padding-left:0;border-right:1px solid #E5E7EB;}.pdf-info-col:last-child{padding-left:20px;}.pdf-info-row{display:flex;gap:8px;margin-bottom:7px;font-size:11px;align-items:flex-start;font-family:'Segoe UI',Arial,sans-serif;}.pdf-info-row:last-child{margin-bottom:0;}.pdf-info-lbl{min-width:108px;color:#6B7280;font-weight:500;flex-shrink:0;}.pdf-info-val{color:#111827;font-weight:600;line-height:1.5;}.pdf-section-header{padding:8px 28px 6px;background:white;border-bottom:1px solid #E5E7EB;display:flex;align-items:center;gap:10px;}.pdf-section-header span{font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.12em;color:#6B7280;font-family:'Segoe UI',Arial,sans-serif;}.pdf-section-header::before{content:'';width:3px;height:11px;background:#1E2A3A;border-radius:1px;flex-shrink:0;}.pdf-section-header::after{content:'';flex:1;height:1px;background:#E5E7EB;}.pdf-stats-table{width:100%;border-collapse:collapse;font-family:'Segoe UI',Arial,sans-serif;font-size:11px;}.pdf-stats-table th{background:#1E2A3A;color:white;padding:7px 10px;text-align:left;font-size:9px;font-weight:600;text-transform:uppercase;letter-spacing:.06em;}.pdf-stats-table td{padding:7px 10px;border-bottom:1px solid #F3F4F6;color:#374151;}.pdf-stats-table tr:nth-child(even) td{background:#F9FAFB;}.pdf-stats-total-row td{background:#F3F4F6!important;font-weight:700;color:#1F2937;border-top:1px solid #D1D5DB;}.pdf-completion-block{margin-top:10px;padding:10px 12px;background:#F9FAFB;border:1px solid #E5E7EB;border-radius:4px;font-family:'Segoe UI',Arial,sans-serif;}.pdf-completion-label{font-size:9px;color:#6B7280;text-transform:uppercase;letter-spacing:.08em;margin-bottom:5px;}.pdf-completion-nums{font-size:13px;font-weight:700;color:#1E2A3A;margin-bottom:6px;}.pdf-bar-bg{background:#E5E7EB;height:6px;border-radius:3px;overflow:hidden;}.pdf-bar-fill{height:100%;background:#1E2A3A;border-radius:3px;}.pdf-tasks-wrap{padding:0 28px 24px;background:white;}.pdf-task-card{border:1px solid #D1D5DB;border-radius:4px;margin-bottom:14px;overflow:hidden;page-break-inside:avoid;}.pdf-task-head{padding:8px 12px;background:#F9FAFB;border-bottom:1px solid #E5E7EB;display:flex;align-items:flex-start;gap:10px;}.pdf-task-no{width:22px;height:22px;border-radius:3px;background:#1E2A3A;color:white;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;flex-shrink:0;}.pdf-task-no.approved{background:#374151;}.pdf-task-title-block{flex:1;min-width:0;}.pdf-task-title{font-size:12px;font-weight:700;color:#111827;line-height:1.3;font-family:'Segoe UI',Arial,sans-serif;}.pdf-task-desc{font-size:10px;color:#6B7280;margin-top:2px;line-height:1.5;font-family:'Segoe UI',Arial,sans-serif;}.pdf-task-badges{display:flex;gap:5px;flex-wrap:wrap;margin-left:auto;flex-shrink:0;}.pdf-badge{display:inline-flex;align-items:center;padding:2px 8px;border-radius:3px;font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;white-space:nowrap;font-family:'Segoe UI',Arial,sans-serif;}.badge-draft{background:#F3F4F6;color:#6B7280;border:1px solid #D1D5DB;}.badge-todo{background:#EFF6FF;color:#1D4ED8;border:1px solid #BFDBFE;}.badge-inprogress{background:#FFFBEB;color:#92400E;border:1px solid #FDE68A;}.badge-done{background:#F0FDF4;color:#166534;border:1px solid #BBF7D0;}.badge-review{background:#F5F3FF;color:#5B21B6;border:1px solid #DDD6FE;}.badge-revisi{background:#FFFBEB;color:#92400E;border:1px solid #FDE68A;}.badge-approved{background:#F0FDF4;color:#166534;border:1px solid #BBF7D0;}.pdf-task-body{padding:10px 12px;}.pdf-task-meta-row{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:10px;}.pdf-meta-item .lbl{font-size:8px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:#9CA3AF;margin-bottom:2px;font-family:'Segoe UI',Arial,sans-serif;}.pdf-meta-item .val{font-size:11px;font-weight:600;color:#1F2937;line-height:1.4;font-family:'Segoe UI',Arial,sans-serif;}.pdf-hasil-section{margin-top:8px;}.pdf-hasil-label{font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:#374151;margin-bottom:7px;display:flex;align-items:center;gap:5px;font-family:'Segoe UI',Arial,sans-serif;border-top:1px solid #E5E7EB;padding-top:8px;}.pdf-hasil-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:8px;}.pdf-hasil-img-wrap{border-radius:3px;overflow:hidden;border:1px solid #D1D5DB;aspect-ratio:16/10;background:#F9FAFB;}.pdf-hasil-img-wrap img{width:100%;height:100%;object-fit:cover;display:block;}.pdf-hasil-doc{display:flex;align-items:center;gap:8px;background:#F9FAFB;border:1px solid #D1D5DB;border-radius:3px;padding:9px 11px;}.pdf-hasil-doc .name{font-size:10px;font-weight:700;color:#374151;word-break:break-all;font-family:'Segoe UI',Arial,sans-serif;}.pdf-hasil-doc .type{font-size:9px;color:#9CA3AF;margin-top:2px;text-transform:uppercase;}.pdf-empty-foto{background:#F9FAFB;border:1px dashed #D1D5DB;border-radius:3px;padding:10px;text-align:center;font-size:10px;color:#9CA3AF;font-style:italic;font-family:'Segoe UI',Arial,sans-serif;}.pdf-doc-footer{background:#1E2A3A;padding:9px 28px;display:flex;justify-content:space-between;align-items:center;margin-top:auto;}.pdf-doc-footer span{font-size:9px;color:#9CA3AF;font-family:'Segoe UI',Arial,sans-serif;}#pdfPieChartP{display:block;}@media print{body{background:white;padding:0;}@page{margin:10mm 8mm;size:A4;}.pdf-wrap{max-width:100%;border:none;display:flex;flex-direction:column;min-height:277mm;}.pdf-doc-footer{margin-top:auto;}.pdf-task-card{page-break-inside:avoid;}.pdf-letterhead,.pdf-doc-footer,.pdf-stats-table th{-webkit-print-color-adjust:exact;print-color-adjust:exact;}}`;
+const PDF_PRINT_CSS_P = `*{box-sizing:border-box;margin:0;padding:0;}body{font-family:'Georgia','Times New Roman',serif;background:#F3F4F6;padding:20px;}.pdf-wrap{max-width:794px;margin:0 auto;color:#1F2937;background:white;border:1px solid #D1D5DB;}.pdf-letterhead{background:#1E2A3A;padding:20px 28px 18px;display:flex;justify-content:space-between;align-items:flex-start;}.pdf-letterhead-left .doc-type{font-size:9px;text-transform:uppercase;letter-spacing:.15em;color:#9CA3AF;margin-bottom:5px;font-family:'Segoe UI',Arial,sans-serif;}.pdf-letterhead-left .doc-title{font-size:18px;font-weight:700;color:white;line-height:1.25;}.pdf-letterhead-left .doc-sub{font-size:11px;color:#9CA3AF;margin-top:4px;font-family:'Segoe UI',Arial,sans-serif;}.pdf-letterhead-right{text-align:right;flex-shrink:0;}.pdf-letterhead-right .doc-num{font-size:10px;color:#9CA3AF;font-family:'Courier New',monospace;margin-bottom:4px;}.pdf-letterhead-right .doc-date{font-size:11px;color:#D1D5DB;font-family:'Segoe UI',Arial,sans-serif;font-weight:500;}.pdf-rule{border:none;border-top:2px solid #374151;margin:0;}.pdf-project-info{padding:16px 28px;background:#F9FAFB;border-bottom:1px solid #E5E7EB;display:grid;grid-template-columns:1fr 1fr;gap:0;}.pdf-info-col{padding:0 12px;}.pdf-info-col:first-child{padding-left:0;border-right:1px solid #E5E7EB;}.pdf-info-col:last-child{padding-left:20px;}.pdf-info-row{display:flex;gap:8px;margin-bottom:7px;font-size:11px;align-items:flex-start;font-family:'Segoe UI',Arial,sans-serif;}.pdf-info-row:last-child{margin-bottom:0;}.pdf-info-lbl{min-width:108px;color:#6B7280;font-weight:500;flex-shrink:0;}.pdf-info-val{color:#111827;font-weight:600;line-height:1.5;}.pdf-section-header{padding:8px 28px 6px;background:white;border-bottom:1px solid #E5E7EB;display:flex;align-items:center;gap:10px;}.pdf-section-header span{font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.12em;color:#6B7280;font-family:'Segoe UI',Arial,sans-serif;}.pdf-section-header::before{content:'';width:3px;height:11px;background:#1E2A3A;border-radius:1px;flex-shrink:0;}.pdf-section-header::after{content:'';flex:1;height:1px;background:#E5E7EB;}.pdf-stats-table{width:100%;border-collapse:collapse;font-family:'Segoe UI',Arial,sans-serif;font-size:11px;}.pdf-stats-table th{background:#1E2A3A;color:white;padding:7px 10px;text-align:left;font-size:9px;font-weight:600;text-transform:uppercase;letter-spacing:.06em;}.pdf-stats-table td{padding:7px 10px;border-bottom:1px solid #F3F4F6;color:#374151;}.pdf-stats-table tr:nth-child(even) td{background:#F9FAFB;}.pdf-stats-total-row td{background:#F3F4F6!important;font-weight:700;color:#1F2937;border-top:1px solid #D1D5DB;}.pdf-completion-block{margin-top:10px;padding:10px 12px;background:#F9FAFB;border:1px solid #E5E7EB;border-radius:4px;font-family:'Segoe UI',Arial,sans-serif;}.pdf-completion-label{font-size:9px;color:#6B7280;text-transform:uppercase;letter-spacing:.08em;margin-bottom:5px;}.pdf-completion-nums{font-size:13px;font-weight:700;color:#1E2A3A;margin-bottom:6px;}.pdf-bar-bg{background:#E5E7EB;height:6px;border-radius:3px;overflow:hidden;}.pdf-bar-fill{height:100%;background:#1E2A3A;border-radius:3px;}.pdf-tasks-wrap{padding:0 28px 24px;background:white;}.pdf-task-card{border:1px solid #D1D5DB;border-radius:4px;margin-bottom:14px;overflow:hidden;page-break-inside:avoid;}.pdf-task-head{padding:8px 12px;background:#F9FAFB;border-bottom:1px solid #E5E7EB;display:flex;align-items:flex-start;gap:10px;}.pdf-task-no{width:22px;height:22px;border-radius:3px;background:#1E2A3A;color:white;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;flex-shrink:0;}.pdf-task-no.approved{background:#374151;}.pdf-task-title-block{flex:1;min-width:0;}.pdf-task-title{font-size:12px;font-weight:700;color:#111827;line-height:1.3;font-family:'Segoe UI',Arial,sans-serif;}.pdf-task-desc{font-size:10px;color:#6B7280;margin-top:2px;line-height:1.5;font-family:'Segoe UI',Arial,sans-serif;}.pdf-task-badges{display:flex;gap:5px;flex-wrap:wrap;margin-left:auto;flex-shrink:0;}.pdf-badge{display:inline-flex;align-items:center;padding:2px 8px;border-radius:3px;font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;white-space:nowrap;font-family:'Segoe UI',Arial,sans-serif;}.badge-draft{background:#F3F4F6;color:#6B7280;border:1px solid #D1D5DB;}.badge-todo{background:#EFF6FF;color:#1D4ED8;border:1px solid #BFDBFE;}.badge-inprogress{background:#FFFBEB;color:#92400E;border:1px solid #FDE68A;}.badge-done{background:#F0FDF4;color:#166534;border:1px solid #BBF7D0;}.badge-review{background:#F5F3FF;color:#5B21B6;border:1px solid #DDD6FE;}.badge-revisi{background:#FFFBEB;color:#92400E;border:1px solid #FDE68A;}.badge-approved{background:#F0FDF4;color:#166534;border:1px solid #BBF7D0;}.pdf-task-body{padding:10px 12px;}.pdf-task-meta-row{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:10px;}.pdf-meta-item .lbl{font-size:8px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:#9CA3AF;margin-bottom:2px;font-family:'Segoe UI',Arial,sans-serif;}.pdf-meta-item .val{font-size:11px;font-weight:600;color:#1F2937;line-height:1.4;font-family:'Segoe UI',Arial,sans-serif;}.pdf-hasil-section{margin-top:8px;}.pdf-hasil-label{font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:#374151;margin-bottom:7px;display:flex;align-items:center;gap:5px;font-family:'Segoe UI',Arial,sans-serif;border-top:1px solid #E5E7EB;padding-top:8px;}.pdf-hasil-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:8px;}.pdf-hasil-img-wrap{border-radius:3px;overflow:hidden;border:1px solid #D1D5DB;aspect-ratio:16/10;background:#F9FAFB;}.pdf-hasil-img-wrap img{width:100%;height:100%;object-fit:cover;display:block;}.pdf-hasil-doc{display:flex;align-items:center;gap:8px;background:#F9FAFB;border:1px solid #D1D5DB;border-radius:3px;padding:9px 11px;}.pdf-hasil-doc .name{font-size:10px;font-weight:700;color:#374151;word-break:break-all;font-family:'Segoe UI',Arial,sans-serif;}.pdf-hasil-doc .type{font-size:9px;color:#9CA3AF;margin-top:2px;text-transform:uppercase;}.pdf-empty-foto{background:#F9FAFB;border:1px dashed #D1D5DB;border-radius:3px;padding:10px;text-align:center;font-size:10px;color:#9CA3AF; font-family:'Segoe UI',Arial,sans-serif;}.pdf-doc-footer{background:#1E2A3A;padding:9px 28px;display:flex;justify-content:space-between;align-items:center;margin-top:auto;}.pdf-doc-footer span{font-size:9px;color:#9CA3AF;font-family:'Segoe UI',Arial,sans-serif;}#pdfPieChartP{display:block;}@media print{body{background:white;padding:0;}@page{margin:10mm 8mm;size:A4;}.pdf-wrap{max-width:100%;border:none;display:flex;flex-direction:column;min-height:277mm;}.pdf-doc-footer{margin-top:auto;}.pdf-task-card{page-break-inside:avoid;}.pdf-letterhead,.pdf-doc-footer,.pdf-stats-table th{-webkit-print-color-adjust:exact;print-color-adjust:exact;}}`;
 
 function _buildPdfForProject(p) {
     const tasks   = (p.tasks || []).filter(t => t.status_progress !== 'draft');

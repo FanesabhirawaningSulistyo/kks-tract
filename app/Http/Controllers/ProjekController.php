@@ -200,16 +200,16 @@ class ProjekController extends Controller
                 $pg = 0;
             }
 
-            $pLabel = (optional($projek->perusahaan)->nama_perwakilan ?? '—') .
-                (optional($projek->perusahaan)->nama_perusahaan
-                    ? ' – ' . optional($projek->perusahaan)->nama_perusahaan
+            $pLabel = (optional($projek->perusahaan)->nama_perusahaan ?? '—') .
+                (optional($projek->perusahaan)->nama_perwakilan
+                    ? ' – ' . optional($projek->perusahaan)->nama_perwakilan
                     : '');
 
             $timList = [];
             try {
                 foreach ($projek->tim ?? [] as $tim) {
                     $timList[] = [
-                        'id_tim'   => $tim->id_tim,
+                        'id_tim'   => (int) $tim->id_tim,
                         'nama'     => optional($tim->user)->nama ?? '—',
                         'jabatan'  => optional(optional($tim->user)->jobRole)->nama_job_role ?? null,
                         'job_role' => optional(optional($tim->user)->jobRole)->nama_job_role ?? null,
@@ -222,7 +222,7 @@ class ProjekController extends Controller
                     'id_tugas'        => $t->id_tugas,
                     'judul_tugas'     => $t->judul_tugas,
                     'deskripsi_tugas' => $t->deskripsi_tugas,
-                    'id_tim'          => $t->id_tim,
+                    'id_tim'          => (int) $t->id_tim,
                     'status_progress' => $t->status_progress,
                     'status_akhir'    => $t->status_akhir,
                     'level'           => $t->level,

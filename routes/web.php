@@ -31,6 +31,7 @@ Route::middleware('guest')->group(function () {
 Route::middleware('auth')->group(function () {
     Route::get('/dashboard', [DashboardController::class, 'index'])
         ->name('dashboard');
+    Route::get('/dashboard/pm', [DashboardController::class, 'index2'])->name('dashboard.pm');
     
     // Dashboard untuk pegawai
     Route::get('/dashboard/pegawai', [DashboardController::class, 'index3'])
