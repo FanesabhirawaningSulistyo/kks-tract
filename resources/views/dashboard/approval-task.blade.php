@@ -203,6 +203,17 @@ body { background: var(--g50); }
     display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden;
 }
 
+/* ── CATATAN BADGE DI CARD (BARU) ── */
+.tc-catatan-badge {
+    display:flex; align-items:flex-start; gap:5px;
+    background:#EFF6FF; border:1px solid #BFDBFE;
+    border-radius:6px; padding:6px 10px;
+    font-size:10px; font-weight:600; color:#1D4ED8;
+    line-height:1.4; margin-top:0;
+}
+.tc-catatan-badge i { font-size:12px; flex-shrink:0; margin-top:1px; }
+.tc-catatan-badge span { flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+
 /* Meta pills row */
 .tc-pills {
     display:flex; align-items:center; flex-wrap:wrap; gap:6px;
@@ -322,6 +333,38 @@ body { background: var(--g50); }
 .gallery-doc { display:flex; flex-direction:column; align-items:center; gap:3px; padding:8px 10px; background:var(--g50); border:1px solid var(--g200); border-radius:7px; font-size:10px; font-weight:700; color:var(--blue); text-decoration:none; transition:background .15s; }
 .gallery-doc:hover { background:var(--blue-light); }
 .gallery-doc i { font-size:20px; }
+
+/* ── CATATAN SECTION DI MODAL (BARU) ── */
+.catatan-modal-section {
+    border:1px solid #BFDBFE;
+    border-radius:10px;
+    overflow:hidden;
+    margin-bottom:16px;
+}
+.catatan-modal-header {
+    background:#DBEAFE;
+    color:#1D4ED8;
+    padding:10px 14px;
+    font-size:12px;
+    font-weight:700;
+    display:flex;
+    align-items:center;
+    gap:6px;
+}
+.catatan-modal-body {
+    padding:14px;
+    background:white;
+    font-size:13px;
+    color:var(--g700);
+    line-height:1.6;
+    white-space:pre-wrap;
+}
+.catatan-modal-body.empty {
+    color:var(--g400);
+    font-style:italic;
+}
+
+/* Form edit modal */
 .form-group-modal { margin-bottom:16px; }
 .form-label-modal { display:block; font-size:11px; font-weight:700; color:var(--g500); margin-bottom:6px; }
 .form-control-modal { width:100%; padding:9px 12px; border:1.5px solid var(--g300); border-radius:8px; font-size:13px; font-weight:500; color:var(--g800); background:white; outline:none; transition:border-color .2s,box-shadow .2s; font-family:inherit; }
@@ -486,14 +529,34 @@ select.form-control-modal { cursor:pointer; }
             $tenggat        = $tugas->tenggat_waktu;
             $isOverdue      = $tenggat && \Carbon\Carbon::parse($tenggat)->isPast() && $tugas->status_progress !== 'done';
             $pernahApproved = (bool)($tugas->pernah_approved ?? false);
+            
+            // Ambil foto, pisahkan catatan dan file biasa
             $fotoArr = $tugas->foto ? $tugas->foto->map(fn($f) => [
                 'id'   => $f->id_tugas_foto,
                 'url'  => Storage::url($f->nama_file),
                 'tipe' => $f->tipe,
                 'nama' => $f->nama_file,
+                'is_catatan' => str_starts_with($f->nama_file, 'catatan::'),
             ])->values()->toArray() : [];
+            
+            // Ambil catatan teks (hanya 1 catatan per task)
+            $catatanText = '';
+            $catatanExists = false;
+            foreach ($tugas->foto as $f) {
+                if (str_starts_with($f->nama_file, 'catatan::')) {
+                    $catatanText = str_replace('catatan::', '', $f->nama_file);
+                    $catatanExists = true;
+                    break;
+                }
+            }
+            
+            // Ambil file hasil (bukan catatan)
+            $hasilFotos = array_filter($fotoArr, fn($f) => $f['tipe'] === 'hasil' && !$f['is_catatan']);
+            $hasHasil = count($hasilFotos) > 0;
+            
             $timProjek = \App\Models\ProjekTim::with('user')
                 ->where('id_projek', $tugas->id_projek)->get();
+                
             $taskJson = json_encode([
                 'id_tugas'        => $tugas->id_tugas,
                 'id_projek'       => $tugas->id_projek,
@@ -514,6 +577,8 @@ select.form-control-modal { cursor:pointer; }
                 'tanggal_selesai' => $tugas->tanggal_selesai?->format('Y-m-d'),
                 'diubah_pada'     => $tugas->diubah_pada?->format('Y-m-d H:i'),
                 'dibuat_pada'     => $tugas->dibuat_pada?->format('Y-m-d H:i'),
+                'catatan_text'    => $catatanText,
+                'has_catatan'     => $catatanExists,
                 'foto'            => $fotoArr,
                 'tim_list'        => $timProjek->map(fn($t) => [
                     'id_tim' => $t->id_tim,
@@ -549,7 +614,15 @@ select.form-control-modal { cursor:pointer; }
 
             {{-- Deskripsi singkat --}}
             @if($tugas->deskripsi_tugas)
-            <p class="tc-desc">{{ $tugas->deskripsi_tugas }}</p>
+            <p class="tc-desc">{{ Str::limit($tugas->deskripsi_tugas, 100) }}</p>
+            @endif
+
+            {{-- CATATAN BADGE (BARU) --}}
+            @if($catatanExists)
+            <div class="tc-catatan-badge">
+                <i class="bx bx-note"></i>
+                <span>{{ Str::limit($catatanText, 65) }}</span>
+            </div>
             @endif
 
             {{-- Pills: level + weight + status PM + pernah approved --}}
@@ -565,6 +638,9 @@ select.form-control-modal { cursor:pointer; }
                 @endif
                 @if($tab !== 'riwayat' && $pernahApproved)
                     <span class="tc-pill pernah-approved"><i class="bx bx-check-shield" style="font-size:11px;"></i>Pernah Approved</span>
+                @endif
+                @if($hasHasil)
+                    <span class="tc-pill weight" style="background:var(--green-light);color:#059669;"><i class="bx bx-paperclip"></i>{{ count($hasilFotos) }} lampiran</span>
                 @endif
             </div>
 
@@ -693,6 +769,15 @@ select.form-control-modal { cursor:pointer; }
                         <div class="detail-field"><div class="detail-lbl">Penilaian PM</div><div id="dt_status_akhir">—</div></div>
                     </div>
                 </div>
+                
+                {{-- CATATAN PENGERJAAN (BARU) --}}
+                <div id="dt_catatan_section" class="catatan-modal-section" style="display:none;">
+                    <div class="catatan-modal-header">
+                        <i class="bx bx-note"></i> Catatan Pengerjaan Karyawan
+                    </div>
+                    <div class="catatan-modal-body" id="dt_catatan_text"></div>
+                </div>
+                
                 <div class="gallery-section">
                     <div class="gallery-section-head brief"><i class="bx bx-paperclip"></i>Foto Brief / Instruksi</div>
                     <div class="gallery-body"><div class="gallery-row" id="dt_foto_brief"><span style="font-size:12px;color:var(--g400);font-style:italic;">Belum ada foto brief.</span></div></div>
@@ -985,7 +1070,7 @@ function updateBadgeCount(tabName, delta) {
 }
 function getModal(id) { return bootstrap.Modal.getOrCreateInstance(document.getElementById(id)); }
 
-/* ── MODAL DETAIL ── */
+/* ── MODAL DETAIL (DENGAN CATATAN) ── */
 function showDetail(task) {
     _currentTaskData = task;
     const hdr = document.getElementById('dt_header_el');
@@ -1026,8 +1111,20 @@ function showDetail(task) {
     document.getElementById('dt_status_akhir').innerHTML = task.status_akhir
         ? `<span style="display:inline-flex;align-items:center;gap:5px;padding:3px 10px;border-radius:6px;font-size:12px;font-weight:700;background:${({review:'var(--purple-light)',revisi:'var(--yellow-light)',approved:'var(--green-light)'})[task.status_akhir]};color:${({review:'#7C3AED',revisi:'#A16207',approved:'#059669'})[task.status_akhir]};">${saT[task.status_akhir]||task.status_akhir}</span>`
         : `<span style="font-size:12px;color:var(--g400);font-style:italic;">Belum dinilai</span>`;
+    
+// Tampilkan catatan jika ada (dengan link yang bisa diklik)
+const catatanSection = document.getElementById('dt_catatan_section');
+const catatanTextEl = document.getElementById('dt_catatan_text');
+if (task.has_catatan && task.catatan_text) {
+    catatanSection.style.display = 'block';
+    // Gunakan processTextWithLinks untuk mengubah URL menjadi link yang bisa diklik
+    catatanTextEl.innerHTML = processTextWithLinks(escHtml(task.catatan_text));
+} else {
+    catatanSection.style.display = 'none';
+}
     buildGallery((task.foto||[]).filter(f=>f.tipe!=='hasil'), document.getElementById('dt_foto_brief'));
-    buildGallery((task.foto||[]).filter(f=>f.tipe==='hasil'), document.getElementById('dt_foto_hasil'));
+    buildGallery((task.foto||[]).filter(f=>f.tipe==='hasil' && !f.is_catatan), document.getElementById('dt_foto_hasil'));
+    
     const ab = document.getElementById('dt_action_btns');
     if (task.status_akhir === 'review') {
         ab.innerHTML = `
@@ -1151,6 +1248,37 @@ async function submitEdit() {
         }
     } catch(e){errBox.textContent='Koneksi bermasalah, coba lagi.';errBox.style.display='block';}
     finally{btn.disabled=false;btn.innerHTML=`<i class="bx bx-save"></i><span id="btn_save_edit_label">${mode==='revisi'?'Simpan & Kirim Revisi':'Simpan Perubahan'}</span>`;}
+}
+
+// Tambahkan fungsi ini setelah fungsi escHtml
+function processTextWithLinks(text) {
+    if (!text) return '';
+    
+    // Regex untuk mendeteksi URL
+    // Mendeteksi: http://, https://, ftp://, www., dan domain (contoh.com/path)
+    const urlRegex = /(\b(https?:\/\/|ftp:\/\/|www\.)[\w\-\.]+\.[a-z]{2,}(?:\/[\w\-\.\/?%&=#]*)?|\b[\w\-\.]+\.[a-z]{2,}(?:\/[\w\-\.\/?%&=#]*)?)/gi;
+    
+    // Fungsi untuk memformat link
+    const replaceWithLink = (match) => {
+        let url = match;
+        // Tambahkan https:// jika tidak ada protocol
+        if (!url.startsWith('http://') && !url.startsWith('https://') && !url.startsWith('ftp://')) {
+            url = 'https://' + url;
+        }
+        // Potong teks jika terlalu panjang untuk tampilan
+        let displayUrl = match;
+        if (displayUrl.length > 50) {
+            displayUrl = displayUrl.substring(0, 35) + '...' + displayUrl.substring(displayUrl.length - 10);
+        }
+        return `<a href="${url}" target="_blank" rel="noopener noreferrer" 
+                style="color:var(--blue);text-decoration:underline;word-break:break-all;"
+                onclick="event.stopPropagation()">${displayUrl}</a>`;
+    };
+    
+    // Proses baris per baris untuk menjaga format
+    const lines = text.split(/\r?\n/);
+    const processedLines = lines.map(line => line.replace(urlRegex, replaceWithLink));
+    return processedLines.join('<br>');
 }
 
 /* ── APPROVE ── */

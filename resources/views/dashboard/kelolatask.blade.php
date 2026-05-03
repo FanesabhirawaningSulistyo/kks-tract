@@ -328,6 +328,35 @@
 @media(max-width:768px) { .task-sheet-header{flex-direction:column}.filter-bar{padding:10px 14px;} }
 .skeleton { background:linear-gradient(90deg,var(--gray-100) 25%,var(--gray-200) 50%,var(--gray-100) 75%);background-size:200% 100%;animation:shimmer 1.4s infinite;border-radius:6px; }
 @keyframes shimmer { 0%{background-position:200% 0}100%{background-position:-200% 0} }
+/* ── Catatan Cell ── */
+.catatan-cell { padding: 6px 2px; }
+.catatan-display {
+    font-size: 12px; color: var(--gray-700); line-height: 1.6;
+    word-break: break-word; white-space: pre-wrap;
+    max-height: 80px; overflow: hidden; position: relative;
+}
+.catatan-display.expanded { max-height: none; }
+.catatan-display a {
+    color: var(--primary-blue); text-decoration: underline;
+    cursor: pointer; word-break: break-all;
+}
+.catatan-display a:hover { color: var(--purple); }
+.catatan-expand-btn {
+    font-size: 10px; font-weight: 700; color: var(--primary-blue);
+    background: none; border: none; cursor: pointer; padding: 2px 0;
+    display: block; margin-top: 2px;
+}
+.catatan-expand-btn:hover { color: var(--purple); }
+.catatan-empty {
+    font-size: 11px; color: var(--gray-400); font-style: italic;
+}
+.catatan-badge-cell {
+    display: inline-flex; align-items: center; gap: 4px;
+    background: #EFF6FF; border: 1px solid #BFDBFE;
+    border-radius: 5px; padding: 2px 7px;
+    font-size: 10px; font-weight: 700; color: #1D4ED8;
+    margin-bottom: 4px;
+}
 </style>
 @endpush
 @section('content')
@@ -477,6 +506,7 @@
                     <th style="width:76px;">Aksi</th>
                     <th class="th-sortable" style="width:220px;" onclick="toggleSort('judul_tugas')">Task Info<span id="sort-icon-judul_tugas" class="sort-icon"><svg width="8" height="12" viewBox="0 0 8 12"><path d="M4 0L7 4H1L4 0Z" fill="currentColor" opacity=".4"/><path d="M4 12L1 8H7L4 12Z" fill="currentColor" opacity=".4"/></svg></span></th>
                     <th class="th-sortable" style="width:140px;" onclick="toggleSort('nama_assignee')">Penanggung Jawab<span id="sort-icon-nama_assignee" class="sort-icon"><svg width="8" height="12" viewBox="0 0 8 12"><path d="M4 0L7 4H1L4 0Z" fill="currentColor" opacity=".4"/><path d="M4 12L1 8H7L4 12Z" fill="currentColor" opacity=".4"/></svg></span></th>
+                    <th style="width:160px;">Catatan Karyawan</th>
                     <th style="width:110px;">Brief/Lap.</th>
                     <th class="th-sortable" style="width:175px;" onclick="toggleSort('status_progress')">Status<span id="sort-icon-status_progress" class="sort-icon"><svg width="8" height="12" viewBox="0 0 8 12"><path d="M4 0L7 4H1L4 0Z" fill="currentColor" opacity=".4"/><path d="M4 12L1 8H7L4 12Z" fill="currentColor" opacity=".4"/></svg></span></th>
                     <th class="th-sortable" style="width:115px;text-align:center;" onclick="toggleSort('level')">Level & Weight<span id="sort-icon-level" class="sort-icon"><svg width="8" height="12" viewBox="0 0 8 12"><path d="M4 0L7 4H1L4 0Z" fill="currentColor" opacity=".4"/><path d="M4 12L1 8H7L4 12Z" fill="currentColor" opacity=".4"/></svg></span></th>
@@ -516,16 +546,44 @@
                 <div id="timMemberList">
                     @forelse($timProject as $tim)
                     @php
-                        $allTimEntries = \App\Models\ProjekTim::where('id_user', optional($tim->user)->id_user)->get();
-                        $timIdList = $allTimEntries->pluck('id_tim');
-                        $allUserTasks = \App\Models\Tugas::whereIn('id_tim', $timIdList)->get();
-                        $totalTask = $allUserTasks->count();
-                        $doneTask  = $allUserTasks->where('status_progress', 'done')->count();
-                        $pct       = $totalTask > 0 ? round(($doneTask / $totalTask) * 100) : 0;
-                        $totalProj = $allTimEntries->count();
-                        $pctColor  = $pct >= 80 ? '#059669' : ($pct >= 50 ? '#D97706' : '#DC2626');
-                        $fillGrad  = $pct >= 80 ? 'linear-gradient(90deg,#10B981,#059669)' : ($pct >= 50 ? 'linear-gradient(90deg,#F59E0B,#D97706)' : 'linear-gradient(90deg,#EF4444,#DC2626)');
-                    @endphp
+    $userId = optional($tim->user)->id_user;
+    $allTimEntries = \App\Models\ProjekTim::where('id_user', $userId)->get();
+
+    // Hanya hitung proyek yang masih "aktif" (ada task belum done+approved)
+    $activeTimIds = [];
+    foreach ($allTimEntries as $entry) {
+        $projTasks = \App\Models\Tugas::where('id_projek', $entry->id_projek)->get();
+        if ($projTasks->count() > 0) {
+            $allComplete = $projTasks->every(
+                fn($t) => $t->status_progress === 'done' && $t->status_akhir === 'approved'
+            );
+            if (!$allComplete) {
+                $activeTimIds[] = $entry->id_tim;
+            }
+        }
+        // Proyek tanpa task / semua selesai → tidak dihitung (beban = 0)
+    }
+
+    $activeUserTasks = count($activeTimIds) > 0
+        ? \App\Models\Tugas::whereIn('id_tim', $activeTimIds)->get()
+        : collect();
+
+    $totalTask    = $activeUserTasks->count();
+    $doneTask     = $activeUserTasks->filter(
+                        fn($t) => $t->status_progress === 'done' && $t->status_akhir === 'approved'
+                    )->count();
+    $belumTask    = $totalTask - $doneTask;   // task belum selesai = beban
+    $pct          = $totalTask > 0 ? round(($belumTask / $totalTask) * 100) : 0;
+    $totalProj    = count($activeTimIds);     // hanya proyek aktif
+
+    // Warna: tinggi beban = merah, rendah = hijau
+    $pctColor  = $pct >= 80 ? '#DC2626' : ($pct >= 50 ? '#D97706' : '#059669');
+    $fillGrad  = $pct >= 80
+        ? 'linear-gradient(90deg,#EF4444,#DC2626)'
+        : ($pct >= 50
+            ? 'linear-gradient(90deg,#F59E0B,#D97706)'
+            : 'linear-gradient(90deg,#10B981,#059669)');
+@endphp
                     <div class="tim-member-item" id="tim-item-{{ $tim->id_tim }}">
                         <div class="tim-member-main">
                             <div class="member-avatar">{{ strtoupper(substr(optional($tim->user)->nama ?? 'XX',0,2)) }}</div>
@@ -543,7 +601,7 @@
                         <div class="tim-member-workload">
                             <div class="workload-bar-wrap">
                                 <div class="workload-top">
-                                    <span class="workload-info">{{ $totalProj }} project • {{ $totalTask }} task total</span>
+                                   <span class="workload-info">{{ $totalProj }} proyek aktif • {{ $totalTask }} task</span>
                                     <span class="workload-pct" style="color:{{ $pctColor }};">{{ $pct }}%</span>
                                 </div>
                                 <div class="workload-track">
@@ -552,8 +610,8 @@
                                 <div class="workload-meta">
                                     <span class="workload-chip proj">{{ $totalProj }} project</span>
                                     <span class="workload-chip task">{{ $totalTask }} task</span>
-                                    <span class="workload-chip done">{{ $doneTask }}/{{ $totalTask }} selesai</span>
-                                </div>
+                                   <span class="workload-chip done">{{ $doneTask }}/{{ $totalTask }} selesai</span>
+                                   </div>
                             </div>
                         </div>
                     </div>
@@ -580,16 +638,40 @@
                     <div id="userCheckboxList" style="max-height:340px;overflow-y:auto;padding-right:2px;">
                         @foreach($userTersedia as $user)
                         @php
-                            $uTimEntries = \App\Models\ProjekTim::where('id_user', $user->id_user)->get();
-                            $uTimIds     = $uTimEntries->pluck('id_tim');
-                            $uAllTasks   = \App\Models\Tugas::whereIn('id_tim', $uTimIds)->get();
-                            $uTotal      = $uAllTasks->count();
-                            $uDone       = $uAllTasks->where('status_progress','done')->count();
-                            $uPct        = $uTotal > 0 ? round(($uDone / $uTotal) * 100) : 0;
-                            $uTotalProj  = $uTimEntries->count();
-                            $uPctColor   = $uPct >= 80 ? '#059669' : ($uPct >= 50 ? '#D97706' : '#DC2626');
-                            $uFillGrad   = $uPct >= 80 ? 'linear-gradient(90deg,#10B981,#059669)' : ($uPct >= 50 ? 'linear-gradient(90deg,#F59E0B,#D97706)' : 'linear-gradient(90deg,#EF4444,#DC2626)');
-                        @endphp
+    $uTimEntries = \App\Models\ProjekTim::where('id_user', $user->id_user)->get();
+
+    $uActiveTimIds = [];
+    foreach ($uTimEntries as $entry) {
+        $projTasks = \App\Models\Tugas::where('id_projek', $entry->id_projek)->get();
+        if ($projTasks->count() > 0) {
+            $allComplete = $projTasks->every(
+                fn($t) => $t->status_progress === 'done' && $t->status_akhir === 'approved'
+            );
+            if (!$allComplete) {
+                $uActiveTimIds[] = $entry->id_tim;
+            }
+        }
+    }
+
+    $uAllTasks   = count($uActiveTimIds) > 0
+        ? \App\Models\Tugas::whereIn('id_tim', $uActiveTimIds)->get()
+        : collect();
+
+    $uTotal      = $uAllTasks->count();
+    $uDone       = $uAllTasks->filter(
+                       fn($t) => $t->status_progress === 'done' && $t->status_akhir === 'approved'
+                   )->count();
+    $uBelum      = $uTotal - $uDone;
+    $uPct        = $uTotal > 0 ? round(($uBelum / $uTotal) * 100) : 0;
+    $uTotalProj  = count($uActiveTimIds);
+
+    $uPctColor   = $uPct >= 80 ? '#DC2626' : ($uPct >= 50 ? '#D97706' : '#059669');
+    $uFillGrad   = $uPct >= 80
+        ? 'linear-gradient(90deg,#EF4444,#DC2626)'
+        : ($uPct >= 50
+            ? 'linear-gradient(90deg,#F59E0B,#D97706)'
+            : 'linear-gradient(90deg,#10B981,#059669)');
+@endphp
                         <label class="user-checkbox-item" id="uitem-{{ $user->id_user }}" data-search="{{ strtolower($user->nama . ' ' . $user->email) }}">
                             <input type="checkbox" value="{{ $user->id_user }}" class="invite-checkbox" onchange="onInviteCheckboxChange(this)">
                             <div style="flex:1;min-width:0;">
@@ -662,6 +744,15 @@
                         <div class="preview-meta-item" style="grid-column:1/-1;"><span class="preview-meta-label">Status Akhir (PM)</span><span id="pvSA">—</span></div>
                     </div>
                 </div>
+<div class="preview-media-section" style="margin-bottom:14px;">
+    <div class="preview-media-header" style="background: #EFF6FF; border: 1px solid #BFDBFE; color: #1D4ED8;">
+        <i class="bx bx-note" style="font-size:14px;"></i> Catatan Karyawan
+    </div>
+    <div class="preview-media-body" id="pvCatatanContainer" style="padding:12px; min-height:60px;">
+        <span class="preview-empty-media" id="pvCatatanEmpty">Belum ada catatan.</span>
+        <div id="pvCatatanText" style="display:none; font-size:12px; color:var(--gray-700); line-height:1.6; white-space:pre-wrap; word-break:break-word;"></div>
+    </div>
+</div>
                 <div class="preview-media-section"><div class="preview-media-header brief-hdr">Foto Brief</div><div class="preview-media-body"><div class="preview-gallery" id="pvGalleryBrief"><span class="preview-empty-media">Belum ada foto brief.</span></div></div></div>
                 <div class="preview-media-section"><div class="preview-media-header hasil-hdr">Laporan Hasil</div><div class="preview-media-body"><div class="preview-gallery" id="pvGalleryHasil"><span class="preview-empty-media">Belum ada laporan hasil.</span></div></div></div>
             </div>
@@ -1209,32 +1300,168 @@ const SA_LABELS={review:'Review',revisi:'Revisi',approved:'Approved'};
 const WEIGHT_MAP={mudah:1,medium:2,susah:3};
 const FIELD_LABELS={judul_tugas:'Nama task',deskripsi_tugas:'Deskripsi',id_tim:'Penanggung jawab',status_progress:'Status progress',level:'Level & weight',weight:'Weight',tanggal_mulai:'Tanggal mulai',tenggat_waktu:'Deadline'};
 
-function renderRow(t,idx){
-    const locked=isRowLocked(t),isRevisi=t.status_akhir==='revisi';
-    const dis=locked?'disabled title="Task sudah Approved oleh PM, tidak dapat diubah"':'';
-    const aOpts=TIM_LIST.map(m=>{const lbl=m.jabatan?`${escHtml(m.nama)} [${escHtml(m.jabatan)}]`:escHtml(m.nama);return `<option value="${m.id_tim}" ${m.id_tim===t.id_tim?'selected':''}>${lbl}</option>`;}).join('');
-    const tlS=calcTimelineStatus(t);
-    const bF=(t.foto||[]).filter(f=>f.tipe!=='hasil'),hF=(t.foto||[]).filter(f=>f.tipe==='hasil');
-    const lvl=t.level||'mudah',wt=WEIGHT_MAP[lvl]||1;
-    const saC=t.status_akhir?`sa-${t.status_akhir}`:'sa-null';
-    const spC=statusClass(t.status_progress);
-    const bDot=bF.length?`<span class="media-count-dot brief-dot">${bF.length}</span>`:`<span class="media-count-dot empty-dot">0</span>`;
-    const hDot=hF.length?`<span class="media-count-dot hasil-dot">${hF.length}</span>`:`<span class="media-count-dot empty-dot">0</span>`;
-    const todayD=new Date().toISOString().split('T')[0];
-    const sevenD=new Date(Date.now()+7*86400000).toISOString().split('T')[0];
-    const TLM={early:{cls:'early',lbl:'Selesai Lebih Awal'},ontime:{cls:'ontime',lbl:'Tepat Waktu'},late:{cls:'late',lbl:'Terlambat Selesai'},inprogress:{cls:'inprogress',lbl:'Proses Pengerjaan'},overdue:{cls:'overdue',lbl:'Melewati Deadline'},upcoming:{cls:'upcoming',lbl:'Deadline Dekat'},todo:{cls:'todo',lbl:'Segera Dikerjakan'},todo_overdue:{cls:'todo_overdue',lbl:'Lewat Deadline'},todo_upcoming:{cls:'todo_upcoming',lbl:'Segera Dikerjakan'},pending:{cls:'',lbl:''}};
-    const tl=TLM[tlS]||TLM.pending;
-    let selHtml='';
-    if(t.status_progress==='done'&&t.tanggal_selesai)selHtml=`<div class="done-date-row ${tl.cls}"><span>Selesai: ${fmtDate(t.tanggal_selesai)}</span><span style="opacity:.75;">• ${tl.lbl}</span></div>`;
-    else if(tl.lbl)selHtml=`<span class="timeline-status timeline-${tl.cls}">${tl.lbl}</span>`;
-    let iBanner='';
-    if(locked)iBanner=`<div class="approved-lock-banner">Terkunci — Approved PM</div>`;
-    else if(isRevisi)iBanner=`<div class="revisi-edit-banner">Perlu Revisi — silakan edit</div>`;
-    else if(t.status_akhir==='review')iBanner=`<div style="display:flex;align-items:center;gap:5px;background:#EDE9FE;border:1px solid #DDD6FE;border-radius:6px;padding:5px 9px;font-size:10px;font-weight:700;color:#7C3AED;margin-top:5px;">Sedang di-Review PM</div>`;
-    let rC=locked?'is-approved':isRevisi?'is-revisi':'';
-    let nC=locked?'approved':isRevisi?'revisi':'';
-    let nL=locked?`<div style="margin-top:4px;font-size:8px;font-weight:800;color:#059669;text-align:center;">✓ Approved</div>`:isRevisi?`<div style="margin-top:4px;font-size:8px;font-weight:800;color:#D97706;text-align:center;">↩ Revisi</div>`:'';
-    return `<tr data-id="${t.id_tugas}" ${rC?`class="${rC}"`:''}><td style="text-align:center;"><div class="task-number ${nC}">${idx+1}</div>${nL}</td><td><div class="action-cell"><button class="action-btn view" onclick="openPreviewModal(${t.id_tugas})" title="Preview"><i class="bx bx-show"></i></button><button class="action-btn delete" onclick="confirmDeleteTask(${t.id_tugas})" title="Hapus" ${locked?'disabled':''}><i class="bx bx-trash"></i></button></div></td><td style="min-width:200px;"><input type="text" class="cell-input" value="${escHtml(t.judul_tugas)}" placeholder="Nama task..." ${dis} oninput="markChange(${t.id_tugas},'judul_tugas',this.value)"><textarea class="cell-textarea" rows="2" placeholder="Deskripsi..." ${dis} oninput="markChange(${t.id_tugas},'deskripsi_tugas',this.value)">${escHtml(t.deskripsi_tugas||'')}</textarea>${iBanner}</td><td><select class="compact-select" ${dis} onchange="markChange(${t.id_tugas},'id_tim',parseInt(this.value),true)">${aOpts}</select></td><td style="min-width:100px;"><div class="media-summary-cell"><span class="media-type-pill brief-pill" onclick="openMediaModal(${t.id_tugas})"><span class="pill-left"> Brief</span>${bDot}</span><span class="media-type-pill hasil-pill" onclick="openMediaModal(${t.id_tugas})"><span class="pill-left"> Lap.</span>${hDot}</span></div></td><td style="min-width:165px;"><div style="display:flex;flex-direction:column;gap:5px;"><select class="compact-select" ${locked?'disabled':''} onchange="handleStatusProgressChange(${t.id_tugas},this.value)"><option value="draft" ${t.status_progress==='draft'?'selected':''}>Draft</option><option value="To Do" ${t.status_progress==='To Do'?'selected':''}>To Do</option><option value="In Progress" ${t.status_progress==='In Progress'?'selected':''}>In Progress</option><option value="done" ${t.status_progress==='done'?'selected':''}>Done</option></select><span class="status-badge status-${spC}" id="sBadge-${t.id_tugas}">${STATUS_LABELS[t.status_progress]||t.status_progress}</span><div style="height:1px;background:var(--gray-100);margin:2px 0;"></div><select class="compact-select" onchange="updateStatusAkhir(${t.id_tugas},this.value)"><option value="" ${!t.status_akhir?'selected':''}>— Belum (PM) —</option><option value="review" ${t.status_akhir==='review'?'selected':''}>Review</option><option value="revisi" ${t.status_akhir==='revisi'?'selected':''}>Revisi</option><option value="approved" ${t.status_akhir==='approved'?'selected':''}>Approved</option></select><span class="sa-badge ${saC}" id="saBadge-${t.id_tugas}">${SA_LABELS[t.status_akhir]||'—'}</span></div></td><td style="text-align:center;"><select class="compact-select" style="width:auto;min-width:80px;" ${dis} onchange="handleLevelChange(${t.id_tugas},this.value)"><option value="mudah" ${lvl==='mudah'?'selected':''}>Mudah</option><option value="medium" ${lvl==='medium'?'selected':''}>Medium</option><option value="susah" ${lvl==='susah'?'selected':''}>Susah</option></select><div class="mt-1"><span class="level-badge level-${lvl}" id="lBadge-${t.id_tugas}">${lvl}</span></div><div class="mt-1 weight-badge justify-content-center" id="wBadge-${t.id_tugas}">${wt}</div></td><td><div style="display:flex;flex-direction:column;gap:4px;"><div style="font-size:10px;color:var(--gray-500);font-weight:600;">Mulai</div><input type="date" id="inp-start-${t.id_tugas}" class="cell-input" style="font-size:11px;padding:3px 6px;" value="${t.tanggal_mulai||todayD}" ${dis} onchange="handleDateChange(${t.id_tugas},'tanggal_mulai',this.value)"><div style="font-size:10px;color:var(--gray-500);font-weight:600;margin-top:3px;">Deadline</div><input type="date" id="inp-end-${t.id_tugas}" class="cell-input" style="font-size:11px;padding:3px 6px;" value="${t.tenggat_waktu||sevenD}" ${dis} onchange="handleDateChange(${t.id_tugas},'tenggat_waktu',this.value)">${selHtml}</div></td><td style="padding:6px;min-width:500px;width:500px;vertical-align:top;"><div id="gantt-cell-${t.id_tugas}"></div></td></tr>`;
+/* ── PROCESS LINKS IN TEXT ── */
+function processTextWithLinks(text) {
+    if (!text) return '';
+    const escaped = escHtml(text);
+    const urlRegex = /(\b(https?:\/\/|ftp:\/\/|www\.)[\w\-\.]+\.[a-z]{2,}(?:\/[\w\-\.\/?%&=#]*)?|\b[\w\-\.]+\.[a-z]{2,6}(?:\/[\w\-\.\/?%&=#]*)?)/gi;
+    return escaped.replace(urlRegex, (match) => {
+        let url = match;
+        if (!url.startsWith('http://') && !url.startsWith('https://') && !url.startsWith('ftp://')) {
+            url = 'https://' + url;
+        }
+        let display = match.length > 45 ? match.substring(0, 35) + '...' + match.substring(match.length - 8) : match;
+        return `<a href="${url}" target="_blank" rel="noopener noreferrer" onclick="event.stopPropagation()">${display}</a>`;
+    });
+}
+
+function toggleCatatanExpand(id) {
+    const el = document.getElementById('catatan-text-' + id);
+    const btn = document.getElementById('catatan-btn-' + id);
+    if (!el || !btn) return;
+    if (el.classList.contains('expanded')) {
+        el.classList.remove('expanded');
+        btn.textContent = 'Lihat selengkapnya';
+    } else {
+        el.classList.add('expanded');
+        btn.textContent = 'Sembunyikan';
+    }
+}
+
+function renderRow(t, idx) {
+    const locked = isRowLocked(t), isRevisi = t.status_akhir === 'revisi';
+    const dis = locked ? 'disabled title="Task sudah Approved oleh PM, tidak dapat diubah"' : '';
+    const aOpts = TIM_LIST.map(m => {
+        const lbl = m.jabatan ? `${escHtml(m.nama)} [${escHtml(m.jabatan)}]` : escHtml(m.nama);
+        return `<option value="${m.id_tim}" ${m.id_tim === t.id_tim ? 'selected' : ''}>${lbl}</option>`;
+    }).join('');
+    const tlS = calcTimelineStatus(t);
+const bF = (t.foto || []).filter(f => f.tipe === 'brief' && !f.is_catatan);
+const hF = (t.foto || []).filter(f => f.tipe === 'hasil' && !f.is_catatan);
+    const lvl = t.level || 'mudah', wt = WEIGHT_MAP[lvl] || 1;
+    const saC = t.status_akhir ? `sa-${t.status_akhir}` : 'sa-null';
+    const spC = statusClass(t.status_progress);
+    const bDot = bF.length ? `<span class="media-count-dot brief-dot">${bF.length}</span>` : `<span class="media-count-dot empty-dot">0</span>`;
+    const hDot = hF.length ? `<span class="media-count-dot hasil-dot">${hF.length}</span>` : `<span class="media-count-dot empty-dot">0</span>`;
+    const todayD = new Date().toISOString().split('T')[0];
+    const sevenD = new Date(Date.now() + 7 * 86400000).toISOString().split('T')[0];
+    const TLM = {
+        early: { cls: 'early', lbl: 'Selesai Lebih Awal' },
+        ontime: { cls: 'ontime', lbl: 'Tepat Waktu' },
+        late: { cls: 'late', lbl: 'Terlambat Selesai' },
+        inprogress: { cls: 'inprogress', lbl: 'Proses Pengerjaan' },
+        overdue: { cls: 'overdue', lbl: 'Melewati Deadline' },
+        upcoming: { cls: 'upcoming', lbl: 'Deadline Dekat' },
+        todo: { cls: 'todo', lbl: 'Segera Dikerjakan' },
+        todo_overdue: { cls: 'todo_overdue', lbl: 'Lewat Deadline' },
+        todo_upcoming: { cls: 'todo_upcoming', lbl: 'Segera Dikerjakan' },
+        pending: { cls: '', lbl: '' }
+    };
+    const tl = TLM[tlS] || TLM.pending;
+    let selHtml = '';
+    if (t.status_progress === 'done' && t.tanggal_selesai)
+        selHtml = `<div class="done-date-row ${tl.cls}"><span>Selesai: ${fmtDate(t.tanggal_selesai)}</span><span style="opacity:.75;">• ${tl.lbl}</span></div>`;
+    else if (tl.lbl)
+        selHtml = `<span class="timeline-status timeline-${tl.cls}">${tl.lbl}</span>`;
+    let iBanner = '';
+    if (locked) iBanner = `<div class="approved-lock-banner">Terkunci — Approved PM</div>`;
+    else if (isRevisi) iBanner = `<div class="revisi-edit-banner">Perlu Revisi — silakan edit</div>`;
+    else if (t.status_akhir === 'review') iBanner = `<div style="display:flex;align-items:center;gap:5px;background:#EDE9FE;border:1px solid #DDD6FE;border-radius:6px;padding:5px 9px;font-size:10px;font-weight:700;color:#7C3AED;margin-top:5px;">Sedang di-Review PM</div>`;
+    let rC = locked ? 'is-approved' : isRevisi ? 'is-revisi' : '';
+    let nC = locked ? 'approved' : isRevisi ? 'revisi' : '';
+    let nL = locked
+        ? `<div style="margin-top:4px;font-size:8px;font-weight:800;color:#059669;text-align:center;">✓ Approved</div>`
+        : isRevisi
+            ? `<div style="margin-top:4px;font-size:8px;font-weight:800;color:#D97706;text-align:center;">↩ Revisi</div>`
+            : '';
+
+    /* ── CATATAN KARYAWAN ── */
+    const allFoto = t.foto || [];
+    const catatanFoto = allFoto.find(f => f.nama_file && f.nama_file.startsWith('catatan::'));
+    const catatanText = catatanFoto ? catatanFoto.nama_file.replace(/^catatan::/, '') : '';
+    const CATATAN_PREVIEW_LEN = 100;
+    let catatanCellHtml = '';
+    if (catatanText) {
+        const needsExpand = catatanText.length > CATATAN_PREVIEW_LEN;
+        const previewText = needsExpand ? catatanText.substring(0, CATATAN_PREVIEW_LEN) + '…' : catatanText;
+        catatanCellHtml = `
+            <div class="catatan-cell">
+                <div class="catatan-badge-cell"><i class="bx bx-note" style="font-size:11px;"></i>Catatan</div>
+                <div class="catatan-display${needsExpand ? '' : ' expanded'}" id="catatan-text-${t.id_tugas}">${processTextWithLinks(catatanText)}</div>
+                ${needsExpand ? `<button class="catatan-expand-btn" id="catatan-btn-${t.id_tugas}" onclick="toggleCatatanExpand(${t.id_tugas})">Lihat selengkapnya</button>` : ''}
+            </div>`;
+    } else {
+        catatanCellHtml = `<div class="catatan-cell"><span class="catatan-empty">—</span></div>`;
+    }
+
+    return `<tr data-id="${t.id_tugas}" ${rC ? `class="${rC}"` : ''}>
+        <td style="text-align:center;">
+            <div class="task-number ${nC}">${idx + 1}</div>${nL}
+        </td>
+        <td>
+            <div class="action-cell">
+                <button class="action-btn view" onclick="openPreviewModal(${t.id_tugas})" title="Preview"><i class="bx bx-show"></i></button>
+                <button class="action-btn delete" onclick="confirmDeleteTask(${t.id_tugas})" title="Hapus" ${locked ? 'disabled' : ''}><i class="bx bx-trash"></i></button>
+            </div>
+        </td>
+        <td style="min-width:200px;">
+            <input type="text" class="cell-input" value="${escHtml(t.judul_tugas)}" placeholder="Nama task..." ${dis} oninput="markChange(${t.id_tugas},'judul_tugas',this.value)">
+            <textarea class="cell-textarea" rows="2" placeholder="Deskripsi..." ${dis} oninput="markChange(${t.id_tugas},'deskripsi_tugas',this.value)">${escHtml(t.deskripsi_tugas || '')}</textarea>
+            ${iBanner}
+        </td>
+        <td>
+            <select class="compact-select" ${dis} onchange="markChange(${t.id_tugas},'id_tim',parseInt(this.value),true)">${aOpts}</select>
+        </td>
+        <td style="min-width:150px;max-width:180px;">
+            ${catatanCellHtml}
+        </td>
+        <td style="min-width:100px;">
+            <div class="media-summary-cell">
+                <span class="media-type-pill brief-pill" onclick="openMediaModal(${t.id_tugas})"><span class="pill-left"> Brief</span>${bDot}</span>
+                <span class="media-type-pill hasil-pill" onclick="openMediaModal(${t.id_tugas})"><span class="pill-left"> Lap.</span>${hDot}</span>
+            </div>
+        </td>
+        <td style="min-width:165px;">
+            <div style="display:flex;flex-direction:column;gap:5px;">
+                <select class="compact-select" ${locked ? 'disabled' : ''} onchange="handleStatusProgressChange(${t.id_tugas},this.value)">
+                    <option value="draft" ${t.status_progress === 'draft' ? 'selected' : ''}>Draft</option>
+                    <option value="To Do" ${t.status_progress === 'To Do' ? 'selected' : ''}>To Do</option>
+                    <option value="In Progress" ${t.status_progress === 'In Progress' ? 'selected' : ''}>In Progress</option>
+                    <option value="done" ${t.status_progress === 'done' ? 'selected' : ''}>Done</option>
+                </select>
+                <span class="status-badge status-${spC}" id="sBadge-${t.id_tugas}">${STATUS_LABELS[t.status_progress] || t.status_progress}</span>
+                <div style="height:1px;background:var(--gray-100);margin:2px 0;"></div>
+                <select class="compact-select" onchange="updateStatusAkhir(${t.id_tugas},this.value)">
+                    <option value="" ${!t.status_akhir ? 'selected' : ''}>— Belum (PM) —</option>
+                    <option value="review" ${t.status_akhir === 'review' ? 'selected' : ''}>Review</option>
+                    <option value="revisi" ${t.status_akhir === 'revisi' ? 'selected' : ''}>Revisi</option>
+                    <option value="approved" ${t.status_akhir === 'approved' ? 'selected' : ''}>Approved</option>
+                </select>
+                <span class="sa-badge ${saC}" id="saBadge-${t.id_tugas}">${SA_LABELS[t.status_akhir] || '—'}</span>
+            </div>
+        </td>
+        <td style="text-align:center;">
+            <select class="compact-select" style="width:auto;min-width:80px;" ${dis} onchange="handleLevelChange(${t.id_tugas},this.value)">
+                <option value="mudah" ${lvl === 'mudah' ? 'selected' : ''}>Mudah</option>
+                <option value="medium" ${lvl === 'medium' ? 'selected' : ''}>Medium</option>
+                <option value="susah" ${lvl === 'susah' ? 'selected' : ''}>Susah</option>
+            </select>
+            <div class="mt-1"><span class="level-badge level-${lvl}" id="lBadge-${t.id_tugas}">${lvl}</span></div>
+            <div class="mt-1 weight-badge justify-content-center" id="wBadge-${t.id_tugas}">${wt}</div>
+        </td>
+        <td>
+            <div style="display:flex;flex-direction:column;gap:4px;">
+                <div style="font-size:10px;color:var(--gray-500);font-weight:600;">Mulai</div>
+                <input type="date" id="inp-start-${t.id_tugas}" class="cell-input" style="font-size:11px;padding:3px 6px;" value="${t.tanggal_mulai || todayD}" ${dis} onchange="handleDateChange(${t.id_tugas},'tanggal_mulai',this.value)">
+                <div style="font-size:10px;color:var(--gray-500);font-weight:600;margin-top:3px;">Deadline</div>
+                <input type="date" id="inp-end-${t.id_tugas}" class="cell-input" style="font-size:11px;padding:3px 6px;" value="${t.tenggat_waktu || sevenD}" ${dis} onchange="handleDateChange(${t.id_tugas},'tenggat_waktu',this.value)">
+                ${selHtml}
+            </div>
+        </td>
+        <td style="padding:6px;min-width:500px;width:500px;vertical-align:top;">
+            <div id="gantt-cell-${t.id_tugas}"></div>
+        </td>
+    </tr>`;
 }
 
 function updateRowDateInputs(id,sd,ed){const si=document.getElementById('inp-start-'+id),ei=document.getElementById('inp-end-'+id);if(si)si.value=sd;if(ei)ei.value=ed;}
@@ -1371,10 +1598,10 @@ document.getElementById('confirmDeleteBtn')?.addEventListener('click',async()=>{
 });
 
 function openPreviewModal(id){
-    const task=tasks.find(t=>t.id_tugas===id);if(!task)return;
+    const task=tasks.find(t=>t.id_tugas===id); if(!task) return;
     document.getElementById('previewModalSubtitle').textContent=task.judul_tugas;
     document.getElementById('pvTitle').textContent=task.judul_tugas||'—';
-    const dE=document.getElementById('pvDesc');if(task.deskripsi_tugas){dE.textContent=task.deskripsi_tugas;dE.style.display='block';}else dE.style.display='none';
+    const dE=document.getElementById('pvDesc'); if(task.deskripsi_tugas){dE.textContent=task.deskripsi_tugas;dE.style.display='block';}else dE.style.display='none';
     const member=TIM_LIST.find(m=>m.id_tim===task.id_tim);
     document.getElementById('pvAssignee').innerHTML=member?(member.jabatan?`${escHtml(member.nama)} [${escHtml(member.jabatan)}]`:escHtml(member.nama)):'—';
     const lv=task.level||'mudah';
@@ -1390,27 +1617,58 @@ function openPreviewModal(id){
     const sp=task.status_progress||'To Do';
     document.getElementById('pvStatus').innerHTML=`<span class="status-badge status-${statusClass(sp)}">${STATUS_LABELS[sp]||sp}</span>`;
     document.getElementById('pvSA').innerHTML=task.status_akhir?`<span class="sa-badge sa-${task.status_akhir}">${SA_LABELS[task.status_akhir]}</span>`:`<span class="sa-badge sa-null">Belum ditentukan</span>`;
+    
+    /* ── TAMPILKAN CATATAN KARYAWAN ── */
+    const allFoto = task.foto || [];
+    const catatanFoto = allFoto.find(f => f.nama_file && f.nama_file.startsWith('catatan::'));
+    const catatanText = catatanFoto ? catatanFoto.nama_file.replace(/^catatan::/, '') : '';
+    const catatanEmpty = document.getElementById('pvCatatanEmpty');
+    const catatanTextEl = document.getElementById('pvCatatanText');
+    
+    if (catatanText) {
+        const processedText = processTextWithLinks(catatanText);
+        catatanTextEl.innerHTML = processedText;
+        catatanTextEl.style.display = 'block';
+        catatanEmpty.style.display = 'none';
+    } else {
+        catatanTextEl.style.display = 'none';
+        catatanEmpty.style.display = 'inline';
+    }
+    
     renderPreviewGallery('pvGalleryBrief',(task.foto||[]).filter(f=>f.tipe!=='hasil'),false);
     renderPreviewGallery('pvGalleryHasil',(task.foto||[]).filter(f=>f.tipe==='hasil'),true);
     new bootstrap.Modal(document.getElementById('modalPreviewTask')).show();
 }
 function renderPreviewGallery(elId,fotos,isHasil){
     const g=document.getElementById(elId);
-    if(!fotos.length){g.innerHTML=`<span class="preview-empty-media">Belum ada ${isHasil?'laporan hasil':'foto brief'}.</span>`;return;}
-    g.innerHTML=fotos.map(f=>{if(isImageFile(f.nama_file||f.url))return `<img class="preview-thumb ${isHasil?'hasil-thumb':''}" src="${escHtml(f.url)}" onclick="window.open('${escHtml(f.url)}','_blank')">`;return `<a class="preview-doc-item" href="${escHtml(f.url)}" target="_blank" rel="noopener"><i class="bx ${docIcon(f.nama_file||f.url)}"></i><span>${escHtml((f.nama_file||'Dokumen').substring(0,20))}</span></a>`;}).join('');
+    // Extra safety: pastikan catatan tidak ikut masuk
+    const filtered = fotos.filter(f => !f.is_catatan && !( f.nama_file && f.nama_file.startsWith('catatan::') ));
+    if(!filtered.length){g.innerHTML=`<span class="preview-empty-media">Belum ada ${isHasil?'laporan hasil':'foto brief'}.</span>`;return;}
+    g.innerHTML=filtered.map(f=>{
+        if(isImageFile(f.nama_file||f.url)) return `<img class="preview-thumb ${isHasil?'hasil-thumb':''}" src="${escHtml(f.url)}" onclick="window.open('${escHtml(f.url)}','_blank')">`;
+        return `<a class="preview-doc-item" href="${escHtml(f.url)}" target="_blank" rel="noopener"><i class="bx ${docIcon(f.nama_file||f.url)}"></i><span>${escHtml((f.nama_file||'Dokumen').substring(0,20))}</span></a>`;
+    }).join('');
 }
 function openMediaModal(id){
     const task=tasks.find(t=>t.id_tugas===id);if(!task)return;
     document.getElementById('media_id_tugas').value=id;
     document.getElementById('mediaModalSubtitle').textContent=task.judul_tugas;
-    renderGallery('galleryBrief',(task.foto||[]).filter(f=>f.tipe!=='hasil'),id);
-    renderGallery('galleryHasil',(task.foto||[]).filter(f=>f.tipe==='hasil'),id);
+    // Filter out catatan dari brief dan hasil
+    const briefFotos = (task.foto||[]).filter(f => f.tipe==='brief' && !f.is_catatan);
+    const hasilFotos = (task.foto||[]).filter(f => f.tipe==='hasil' && !f.is_catatan);
+    renderGallery('galleryBrief', briefFotos, id);
+    renderGallery('galleryHasil', hasilFotos, id);
     new bootstrap.Modal(document.getElementById('modalMediaTask')).show();
 }
 function renderGallery(elId,fotos,id){
     const g=document.getElementById(elId);
-    if(!fotos.length){g.innerHTML=`<div style="color:var(--gray-400);font-size:12px;padding:8px 0;">Belum ada file</div>`;return;}
-    g.innerHTML=fotos.map(f=>{if(isImageFile(f.nama_file||f.url))return `<div class="gallery-item ${f.tipe==='hasil'?'hasil-item':''}"><img src="${escHtml(f.url)}" onclick="window.open('${escHtml(f.url)}','_blank')"><button class="g-remove" onclick="deleteFoto(${id},${f.id_tugas_foto})"><i class="bx bx-x"></i></button></div>`;return `<div class="gallery-doc" onclick="window.open('${escHtml(f.url)}','_blank')"><i class="bx ${docIcon(f.nama_file||f.url)}"></i><span>${escHtml((f.nama_file||'Doc').substring(0,14))}</span><button class="g-remove" onclick="event.stopPropagation();deleteFoto(${id},${f.id_tugas_foto})"><i class="bx bx-x"></i></button></div>`;}).join('');
+    // Extra safety: pastikan catatan tidak ikut masuk
+    const filtered = fotos.filter(f => !f.is_catatan && !(f.nama_file && f.nama_file.startsWith('catatan::')));
+    if(!filtered.length){g.innerHTML=`<div style="color:var(--gray-400);font-size:12px;padding:8px 0;">Belum ada file</div>`;return;}
+    g.innerHTML=filtered.map(f=>{
+        if(isImageFile(f.nama_file||f.url)) return `<div class="gallery-item ${f.tipe==='hasil'?'hasil-item':''}"><img src="${escHtml(f.url)}" onclick="window.open('${escHtml(f.url)}','_blank')"><button class="g-remove" onclick="deleteFoto(${id},${f.id_tugas_foto})"><i class="bx bx-x"></i></button></div>`;
+        return `<div class="gallery-doc" onclick="window.open('${escHtml(f.url)}','_blank')"><i class="bx ${docIcon(f.nama_file||f.url)}"></i><span>${escHtml((f.nama_file||'Doc').substring(0,14))}</span><button class="g-remove" onclick="event.stopPropagation();deleteFoto(${id},${f.id_tugas_foto})"><i class="bx bx-x"></i></button></div>`;
+    }).join('');
 }
 function handleDragOver(e,z){e.preventDefault();document.getElementById(z).classList.add('dragover');}
 function handleDragLeave(z){document.getElementById(z).classList.remove('dragover');}
@@ -1444,7 +1702,6 @@ async function inviteTim(){
     else showToast(d.message||'Gagal mengundang anggota.','error','Gagal Undang',5000);
 }
 async function removeTim(id){
-    if(!confirm('Keluarkan anggota ini dari tim?'))return;
     const d=await apiFetch(`${BASE_URL}/tim/${id}`,'DELETE');
     if(d.success){
         document.getElementById('tim-item-'+id)?.remove();

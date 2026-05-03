@@ -8,7 +8,6 @@ use App\Models\User;
 use App\Models\ProjekTim;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\DB;
 
 class ApprovalTaskController extends Controller
 {
@@ -38,7 +37,7 @@ class ApprovalTaskController extends Controller
             'tim',
             'tim.user',
             'tim.user.jobRole',
-            'foto',
+            'foto',  // Pastikan relasi foto ada di model Tugas
         ])->whereIn('id_projek', $projekIds);
 
         if ($tab === 'menunggu') {

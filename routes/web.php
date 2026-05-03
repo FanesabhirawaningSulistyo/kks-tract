@@ -149,6 +149,8 @@ Route::prefix('projek/{id_projek}/task')->name('task.')->middleware('auth')->gro
     // Tim — statis dulu sebelum /{id_tugas}
     Route::post('/tim/invite',       [TaskController::class, 'inviteTim'])->name('tim.invite');
     Route::delete('/tim/{id_tim}',   [TaskController::class, 'removeTim'])->name('tim.remove');
+    // Di dalam group route 'projek/{id_projek}/task' (sudah ada)
+    Route::post('/{id_tugas}/catatan', [TaskController::class, 'storeCatatan'])->name('catatan.store');
 
     // ─── Route dengan wildcard {id_tugas} — HARUS di bawah route statis ───
     Route::put('/{id_tugas}',                        [TaskController::class, 'updateTask'])->name('update');

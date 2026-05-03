@@ -33,7 +33,6 @@ class ProjekController extends Controller
         if ($user->isAdmin()) {
             // Admin: tampilkan semua project, tidak perlu filter
         } elseif ($user->isPM()) {
-            // PM: hanya project yang dia buat (dibuat_oleh = id_user PM)
             $query->where('dibuat_oleh', $user->id_user);
         } elseif ($user->isKaryawan()) {
             // Karyawan: hanya project yang dia tergabung di projek_tim
@@ -156,7 +155,6 @@ class ProjekController extends Controller
 
         } elseif ($user->isPM()) {
             $statsQuery->where('dibuat_oleh', $user->id_user);
-
         } elseif ($user->isKaryawan()) {
             // Gunakan $proyekIdList yang sudah diinisialisasi di atas
             if (empty($proyekIdList)) {
@@ -337,10 +335,9 @@ class ProjekController extends Controller
             return response()->json(['success' => false, 'message' => 'Akses ditolak.'], 403);
         }
 
-        if ($user->isPM() && $projek->dibuat_oleh !== $user->id_user) {
+        if ($user->isPM() && (int)$projek->dibuat_oleh !== (int)$user->id_user) {
             return response()->json(['success' => false, 'message' => 'Akses ditolak.'], 403);
         }
-
         $request->validate([
             'status' => 'required|in:pending,in_progress,aktif,selesai',
         ]);
@@ -364,8 +361,8 @@ class ProjekController extends Controller
             abort(403, 'Anda tidak memiliki akses untuk mengedit project.');
         }
 
-        if ($user->isPM() && $projek->dibuat_oleh !== $user->id_user) {
-            abort(403, 'Anda hanya bisa mengedit project yang Anda buat.');
+        if ($user->isPM() && (int)$projek->dibuat_oleh !== (int)$user->id_user) {
+            abort(403, 'Anda tidak memiliki akses untuk mengedit project ini.');
         }
 
         $validated = $request->validate([
@@ -440,10 +437,9 @@ class ProjekController extends Controller
             return response()->json(['success' => false, 'message' => 'Akses ditolak.'], 403);
         }
 
-        if ($user->isPM() && $projek->dibuat_oleh !== $user->id_user) {
-            return response()->json(['success' => false, 'message' => 'Anda hanya bisa mengedit project milik Anda.'], 403);
+        if ($user->isPM() && (int)$projek->dibuat_oleh !== (int)$user->id_user) {
+            return response()->json(['success' => false, 'message' => 'Akses ditolak.'], 403);
         }
-
         $validator = Validator::make($request->all(), [
             'tanggal_mulai'   => 'nullable|date',
             'tanggal_selesai' => 'nullable|date|after_or_equal:tanggal_mulai',
