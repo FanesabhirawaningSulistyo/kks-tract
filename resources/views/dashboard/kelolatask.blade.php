@@ -1704,10 +1704,8 @@ async function inviteTim(){
 async function removeTim(id){
     const d=await apiFetch(`${BASE_URL}/tim/${id}`,'DELETE');
     if(d.success){
-        document.getElementById('tim-item-'+id)?.remove();
-        const remaining=document.querySelectorAll('#timMemberList .tim-member-item').length;
-        const badge=document.getElementById('timCountBadge');if(badge)badge.textContent=remaining+' anggota';
-        showToast('Anggota berhasil dikeluarkan.','info','Tim Diperbarui',2500);
+        showToast('Anggota berhasil dikeluarkan. Memuat ulang...','info','Tim Diperbarui',1500);
+        setTimeout(()=>location.reload(),1200);
     }else{showToast(d.message||'Gagal mengeluarkan anggota.','error','Gagal',4000);}
 }
 function filterUsers(q){ filterUsersModal(q); }

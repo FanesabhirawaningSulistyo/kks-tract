@@ -13,7 +13,6 @@ return new class extends Migration
             $table->string('nama', 100);
             $table->string('email', 100)->unique();
             $table->string('password', 255);
-            // ✅ FIX: 'PM' uppercase agar konsisten dengan form & controller
             $table->enum('role', ['admin', 'PM', 'karyawan', 'klien'])
                 ->default('karyawan');
             $table->unsignedBigInteger('id_job_role')->nullable();

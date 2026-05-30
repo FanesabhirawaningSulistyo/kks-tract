@@ -12,12 +12,11 @@ return new class extends Migration
             $table->bigIncrements('id_perusahaan');
             $table->unsignedBigInteger('id_user_perusahaan')->nullable();
 
-            // ✅ Tambahkan 3 kolom ini (sinkronisasi dari users)
             $table->string('nama_perusahaan', 100)->nullable();
             $table->string('email_perusahaan', 100)->nullable();
             $table->string('telepon_perusahaan', 20)->nullable();
 
-            // Data perwakilan (PIC)
+            // Data perwakilan
             $table->string('nama_perwakilan', 100);
             $table->string('email_perwakilan', 100)->unique();
             $table->string('telepon_perwakilan', 20)->nullable();
