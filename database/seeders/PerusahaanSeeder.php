@@ -5,227 +5,304 @@ namespace Database\Seeders;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Carbon;
 
 class PerusahaanSeeder extends Seeder
 {
-    private $perusahaanData = [
-        [
-            'perusahaan' => [
-                'nama'    => 'PT Abadi Jaya',
-                'email'   => 'info@abadi-jaya.co.id',
-                'telepon' => '021-5234567',
-            ],
-            'perwakilan' => [
-                'nama'    => 'Ahmad Wijaya',
-                'email'   => 'ahmad.wijaya@gmail.com',
-                'telepon' => '081234567801',
-            ],
-            'alamat' => 'Jl. Sudirman No. 123, Jakarta Pusat',
-        ],
-        [
-            'perusahaan' => [
-                'nama'    => 'PT Makmur Sentosa',
-                'email'   => 'contact@makmursentosa.com',
-                'telepon' => '021-5678901',
-            ],
-            'perwakilan' => [
-                'nama'    => 'Siti Nurhaliza',
-                'email'   => 'siti.nurhaliza@yahoo.com',
-                'telepon' => '081234567802',
-            ],
-            'alamat' => 'Jl. Gatot Subroto Kav. 52, Jakarta Selatan',
-        ],
-        [
-            'perusahaan' => [
-                'nama'    => 'PT Sejahtera Bersama',
-                'email'   => 'info@sejahterabersama.co.id',
-                'telepon' => '021-8765432',
-            ],
-            'perwakilan' => [
-                'nama'    => 'Bambang Susanto',
-                'email'   => 'bambang.susanto@outlook.com',
-                'telepon' => '081234567803',
-            ],
-            'alamat' => 'Jl. TB Simatupang No. 88, Jakarta Selatan',
-        ],
-        [
-            'perusahaan' => [
-                'nama'    => 'PT Surya Mandiri',
-                'email'   => 'corporate@suryamandiri.com',
-                'telepon' => '021-7890123',
-            ],
-            'perwakilan' => [
-                'nama'    => 'Dewi Lestari',
-                'email'   => 'dewi.lestari@company.co.id',
-                'telepon' => '081234567804',
-            ],
-            'alamat' => 'Jl. Rasuna Said Kav. 10, Jakarta Selatan',
-        ],
-        [
-            'perusahaan' => [
-                'nama'    => 'PT Bintang Emas',
-                'email'   => 'hello@bintangemas.co.id',
-                'telepon' => '021-6543210',
-            ],
-            'perwakilan' => [
-                'nama'    => 'Eko Prasetyo',
-                'email'   => 'eko.prasetyo@business.id',
-                'telepon' => '081234567805',
-            ],
-            'alamat' => 'Jl. Jend. Ahmad Yani No. 45, Jakarta Timur',
-        ],
-        [
-            'perusahaan' => [
-                'nama'    => 'PT Cahaya Utama',
-                'email'   => 'admin@cahayautama.com',
-                'telepon' => '021-4321098',
-            ],
-            'perwakilan' => [
-                'nama'    => 'Fitri Handayani',
-                'email'   => 'fitri.handayani@gmail.com',
-                'telepon' => '081234567806',
-            ],
-            'alamat' => 'Jl. Boulevard Raya Blok LC6, Kelapa Gading',
-        ],
-        [
-            'perusahaan' => [
-                'nama'    => 'PT Maju Jaya',
-                'email'   => 'info@majujaya.co.id',
-                'telepon' => '021-3210987',
-            ],
-            'perwakilan' => [
-                'nama'    => 'Gunawan Setiawan',
-                'email'   => 'gunawan.setiawan@yahoo.com',
-                'telepon' => '081234567807',
-            ],
-            'alamat' => 'Jl. HR Rasuna Said Kav. C-22, Kuningan',
-        ],
-        [
-            'perusahaan' => [
-                'nama'    => 'PT Global Tech',
-                'email'   => 'contact@globaltech.co.id',
-                'telepon' => '021-2109876',
-            ],
-            'perwakilan' => [
-                'nama'    => 'Heni Kusuma',
-                'email'   => 'heni.kusuma@outlook.com',
-                'telepon' => '081234567808',
-            ],
-            'alamat' => 'Jl. Jend. Sudirman Kav. 25, Jakarta Pusat',
-        ],
-        [
-            'perusahaan' => [
-                'nama'    => 'PT Nusantara Indah',
-                'email'   => 'info@nusantaraindah.com',
-                'telepon' => '021-1098765',
-            ],
-            'perwakilan' => [
-                'nama'    => 'Indra Wijaya',
-                'email'   => 'indra.wijaya@company.co.id',
-                'telepon' => '081234567809',
-            ],
-            'alamat' => 'Jl. MT Haryono Kav. 8, Cawang',
-        ],
-        [
-            'perusahaan' => [
-                'nama'    => 'PT Karya Bangsa',
-                'email'   => 'corporate@karyabangsa.co.id',
-                'telepon' => '021-9876543',
-            ],
-            'perwakilan' => [
-                'nama'    => 'Julia Rahmawati',
-                'email'   => 'julia.rahmawati@business.id',
-                'telepon' => '081234567810',
-            ],
-            'alamat' => 'Jl. Pluit Raya No. 1, Jakarta Utara',
-        ],
-    ];
-
     public function run(): void
     {
-        $jobRoles = DB::table('job_roles')->pluck('id_job_role', 'nama_job_role');
+        $now = Carbon::now();
 
-        $insertedCount = 0;
-        $skippedCount  = 0;
+        $perusahaan = [
+            // -------------------------------------------------------
+            // Perusahaan 1
+            // -------------------------------------------------------
+            [
+                'nama_perusahaan'    => 'PT Digital Nusantara',
+                'email_perusahaan'   => 'digitalnusantara@gmail.com',
+                'telepon_perusahaan' => '0211234567',
+                'nama_perwakilan'    => 'Budi Santoso',
+                'email_perwakilan'   => 'budisantoso@gmail.com',
+                'telepon_perwakilan' => '081200000001',
+                'alamat_perusahaan'  => 'Jakarta',
+            ],
+            // -------------------------------------------------------
+            // Perusahaan 2
+            // -------------------------------------------------------
+            [
+                'nama_perusahaan'    => 'CV Kreasi Media',
+                'email_perusahaan'   => 'kreasimedia@gmail.com',
+                'telepon_perusahaan' => '0222234567',
+                'nama_perwakilan'    => 'Sinta Maharani',
+                'email_perwakilan'   => 'sintamaharani@gmail.com',
+                'telepon_perwakilan' => '081200000002',
+                'alamat_perusahaan'  => 'Bandung',
+            ],
+            // -------------------------------------------------------
+            // Perusahaan 3
+            // -------------------------------------------------------
+            [
+                'nama_perusahaan'    => 'PT Solusi Teknologi',
+                'email_perusahaan'   => 'solusiteknologi@gmail.com',
+                'telepon_perusahaan' => '0313234567',
+                'nama_perwakilan'    => 'Ahmad Ramadhan',
+                'email_perwakilan'   => 'ahmadramadhan@gmail.com',
+                'telepon_perwakilan' => '081200000003',
+                'alamat_perusahaan'  => 'Surabaya',
+            ],
+            // -------------------------------------------------------
+            // Perusahaan 4
+            // -------------------------------------------------------
+            [
+                'nama_perusahaan'    => 'PT Inovasi Kreatif',
+                'email_perusahaan'   => 'inovasikreatif@gmail.com',
+                'telepon_perusahaan' => '0274234567',
+                'nama_perwakilan'    => 'Dinda Permata',
+                'email_perwakilan'   => 'dindapermata@gmail.com',
+                'telepon_perwakilan' => '081200000004',
+                'alamat_perusahaan'  => 'Yogyakarta',
+            ],
+            // -------------------------------------------------------
+            // Perusahaan 5
+            // -------------------------------------------------------
+            [
+                'nama_perusahaan'    => 'PT Maju Bersama',
+                'email_perusahaan'   => 'majubersama@gmail.com',
+                'telepon_perusahaan' => '0243234567',
+                'nama_perwakilan'    => 'Fajar Nugroho',
+                'email_perwakilan'   => 'fajarnugroho@gmail.com',
+                'telepon_perwakilan' => '081200000005',
+                'alamat_perusahaan'  => 'Semarang',
+            ],
+            // -------------------------------------------------------
+            // Perusahaan 6
+            // -------------------------------------------------------
+            [
+                'nama_perusahaan'    => 'PT Global Media',
+                'email_perusahaan'   => 'globalmedia@gmail.com',
+                'telepon_perusahaan' => '0616234567',
+                'nama_perwakilan'    => 'Rizky Hidayat',
+                'email_perwakilan'   => 'rizkyhidayat@gmail.com',
+                'telepon_perwakilan' => '081200000006',
+                'alamat_perusahaan'  => 'Medan',
+            ],
+            // -------------------------------------------------------
+            // Perusahaan 7
+            // -------------------------------------------------------
+            [
+                'nama_perusahaan'    => 'PT Nusantara Tech',
+                'email_perusahaan'   => 'nusantaratech@gmail.com',
+                'telepon_perusahaan' => '0411234567',
+                'nama_perwakilan'    => 'Kevin Saputra',
+                'email_perwakilan'   => 'kevinsaputra@gmail.com',
+                'telepon_perwakilan' => '081200000007',
+                'alamat_perusahaan'  => 'Makassar',
+            ],
+            // -------------------------------------------------------
+            // Perusahaan 8
+            // -------------------------------------------------------
+            [
+                'nama_perusahaan'    => 'PT Cipta Karya Digital',
+                'email_perusahaan'   => 'ciptakaryadigital@gmail.com',
+                'telepon_perusahaan' => '0711234567',
+                'nama_perwakilan'    => 'Rina Amelia',
+                'email_perwakilan'   => 'rinaamelia@gmail.com',
+                'telepon_perwakilan' => '081200000008',
+                'alamat_perusahaan'  => 'Palembang',
+            ],
+            // -------------------------------------------------------
+            // Perusahaan 9
+            // -------------------------------------------------------
+            [
+                'nama_perusahaan'    => 'PT Mitra Informatika',
+                'email_perusahaan'   => 'mitrainformatika@gmail.com',
+                'telepon_perusahaan' => '0341234567',
+                'nama_perwakilan'    => 'Aldi Prasetyo',
+                'email_perwakilan'   => 'aldiprasetyo@gmail.com',
+                'telepon_perwakilan' => '081200000009',
+                'alamat_perusahaan'  => 'Malang',
+            ],
+            // -------------------------------------------------------
+            // Perusahaan 10
+            // -------------------------------------------------------
+            [
+                'nama_perusahaan'    => 'PT Vision Creative',
+                'email_perusahaan'   => 'visioncreative@gmail.com',
+                'telepon_perusahaan' => '0361234567',
+                'nama_perwakilan'    => 'Vina Oktavia',
+                'email_perwakilan'   => 'vinaoktavia@gmail.com',
+                'telepon_perwakilan' => '081200000010',
+                'alamat_perusahaan'  => 'Denpasar',
+            ],
+            // -------------------------------------------------------
+            // Perusahaan 11
+            // -------------------------------------------------------
+            [
+                'nama_perusahaan'    => 'PT Data Solution',
+                'email_perusahaan'   => 'datasolution@gmail.com',
+                'telepon_perusahaan' => '0542234567',
+                'nama_perwakilan'    => 'Yogi Saputro',
+                'email_perwakilan'   => 'yogisaputro@gmail.com',
+                'telepon_perwakilan' => '081200000011',
+                'alamat_perusahaan'  => 'Balikpapan',
+            ],
+            // -------------------------------------------------------
+            // Perusahaan 12
+            // -------------------------------------------------------
+            [
+                'nama_perusahaan'    => 'PT Smart Digital',
+                'email_perusahaan'   => 'smartdigital@gmail.com',
+                'telepon_perusahaan' => '0761234567',
+                'nama_perwakilan'    => 'Farhan Akbar',
+                'email_perwakilan'   => 'farhanakbar@gmail.com',
+                'telepon_perwakilan' => '081200000012',
+                'alamat_perusahaan'  => 'Pekanbaru',
+            ],
+            // -------------------------------------------------------
+            // Perusahaan 13
+            // -------------------------------------------------------
+            [
+                'nama_perusahaan'    => 'PT Creative Studio',
+                'email_perusahaan'   => 'creativestudio@gmail.com',
+                'telepon_perusahaan' => '0561234567',
+                'nama_perwakilan'    => 'Salsa Aulia',
+                'email_perwakilan'   => 'salsaaulia@gmail.com',
+                'telepon_perwakilan' => '081200000013',
+                'alamat_perusahaan'  => 'Pontianak',
+            ],
+            // -------------------------------------------------------
+            // Perusahaan 14
+            // -------------------------------------------------------
+            [
+                'nama_perusahaan'    => 'PT Media Inovatif',
+                'email_perusahaan'   => 'mediainovatif@gmail.com',
+                'telepon_perusahaan' => '0541234567',
+                'nama_perwakilan'    => 'Citra Maharani',
+                'email_perwakilan'   => 'citramaharani@gmail.com',
+                'telepon_perwakilan' => '081200000014',
+                'alamat_perusahaan'  => 'Samarinda',
+            ],
+            // -------------------------------------------------------
+            // Perusahaan 15
+            // -------------------------------------------------------
+            [
+                'nama_perusahaan'    => 'PT Future Technology',
+                'email_perusahaan'   => 'futuretechnology@gmail.com',
+                'telepon_perusahaan' => '0431234567',
+                'nama_perwakilan'    => 'Reza Maulana',
+                'email_perwakilan'   => 'rezamaulana@gmail.com',
+                'telepon_perwakilan' => '081200000015',
+                'alamat_perusahaan'  => 'Manado',
+            ],
+            // -------------------------------------------------------
+            // Perusahaan 16
+            // -------------------------------------------------------
+            [
+                'nama_perusahaan'    => 'PT Teknologi Hebat',
+                'email_perusahaan'   => 'teknologihebat@gmail.com',
+                'telepon_perusahaan' => '0751234567',
+                'nama_perwakilan'    => 'Nadia Putri',
+                'email_perwakilan'   => 'nadiaputri@gmail.com',
+                'telepon_perwakilan' => '081200000016',
+                'alamat_perusahaan'  => 'Padang',
+            ],
+            // -------------------------------------------------------
+            // Perusahaan 17
+            // -------------------------------------------------------
+            [
+                'nama_perusahaan'    => 'PT Berkah Digital',
+                'email_perusahaan'   => 'berkahdigital@gmail.com',
+                'telepon_perusahaan' => '0511234567',
+                'nama_perwakilan'    => 'Bagas Firmansyah',
+                'email_perwakilan'   => 'bagasfirmansyah@gmail.com',
+                'telepon_perwakilan' => '081200000017',
+                'alamat_perusahaan'  => 'Banjarmasin',
+            ],
+            // -------------------------------------------------------
+            // Perusahaan 18
+            // -------------------------------------------------------
+            [
+                'nama_perusahaan'    => 'PT Prima Teknologi',
+                'email_perusahaan'   => 'primateknologi@gmail.com',
+                'telepon_perusahaan' => '0741234567',
+                'nama_perwakilan'    => 'Tiara Anindya',
+                'email_perwakilan'   => 'tiaraanindya@gmail.com',
+                'telepon_perwakilan' => '081200000018',
+                'alamat_perusahaan'  => 'Jambi',
+            ],
+            // -------------------------------------------------------
+            // Perusahaan 19
+            // -------------------------------------------------------
+            [
+                'nama_perusahaan'    => 'PT Kreatif Nusantara',
+                'email_perusahaan'   => 'kreatifnusantara@gmail.com',
+                'telepon_perusahaan' => '0380234567',
+                'nama_perwakilan'    => 'Dimas Saputra',
+                'email_perwakilan'   => 'dimassaputra@gmail.com',
+                'telepon_perwakilan' => '081200000019',
+                'alamat_perusahaan'  => 'Kupang',
+            ],
+            // -------------------------------------------------------
+            // Perusahaan 20
+            // -------------------------------------------------------
+            [
+                'nama_perusahaan'    => 'PT Infinity Solution',
+                'email_perusahaan'   => 'infinitysolution@gmail.com',
+                'telepon_perusahaan' => '0911234567',
+                'nama_perwakilan'    => 'Andika Putra',
+                'email_perwakilan'   => 'andikaputra@gmail.com',
+                'telepon_perwakilan' => '081200000020',
+                'alamat_perusahaan'  => 'Ambon',
+            ],
+        ];
 
-        foreach ($this->perusahaanData as $data) {
-            // Cek duplikat email perusahaan di tabel users
-            if (DB::table('users')->where('email', $data['perusahaan']['email'])->exists()) {
-                $this->command->warn("⚠ Email perusahaan {$data['perusahaan']['email']} sudah ada, melewati...");
-                $skippedCount++;
-                continue;
-            }
+        // id_job_role untuk role 'klien' = 16 (sesuai JobRoleSeeder)
+        $jobRoleKlien = 16;
 
-            // Cek duplikat email perwakilan di tabel perusahaan
-            if (DB::table('perusahaan')->where('email_perwakilan', $data['perwakilan']['email'])->exists()) {
-                $this->command->warn("⚠ Email perwakilan {$data['perwakilan']['email']} sudah ada, melewati...");
-                $skippedCount++;
-                continue;
-            }
+        // id_user dimulai dari 24 (lanjutan dari UserSeeder)
+        $startUserId = 24;
 
-            // 1. Buat akun user untuk PERUSAHAAN (nama, email, telepon perusahaan)
-            $userId = DB::table('users')->insertGetId([
-                'nama'       => $data['perusahaan']['nama'],    // Nama Perusahaan
-                'email'      => $data['perusahaan']['email'],   // Email Perusahaan
-                'password'   => Hash::make('password123'),
-                'role'       => 'klien',
-                'id_job_role' => $jobRoles['Klien'] ?? null,
-                'no_hp'      => $data['perusahaan']['telepon'], // Telepon Perusahaan
-                'foto'       => null,
-                'status'     => true,
-                'created_at' => now(),
-                'updated_at' => now(),
+        foreach ($perusahaan as $index => $item) {
+            $userId = $startUserId + $index;
+
+            // -------------------------------------------------------
+            // 1. Insert user dengan nama & email perusahaan, role klien
+            // -------------------------------------------------------
+            DB::table('users')->insert([
+                'id_user'        => $userId,
+                'nama'           => $item['nama_perusahaan'],
+                'email'          => $item['email_perusahaan'],
+                'password'       => Hash::make('password123'),
+                'role'           => 'klien',
+                'id_job_role'    => $jobRoleKlien,
+                'no_hp'          => $item['telepon_perusahaan'],
+                'foto'           => null,
+                'status'         => true,
+                'remember_token' => null,
+                'created_at'     => $now,
+                'updated_at'     => $now,
             ]);
 
-            // 2. Buat data perusahaan dengan data PERWAKILAN (PIC)
+            // -------------------------------------------------------
+            // 2. Insert perusahaan dengan id_user_perusahaan yang baru dibuat
+            // -------------------------------------------------------
             DB::table('perusahaan')->insert([
-                'id_user_perusahaan' => $userId,
-                'nama_perwakilan'    => $data['perwakilan']['nama'],
-                'email_perwakilan'   => $data['perwakilan']['email'],
-                'telepon_perwakilan' => $data['perwakilan']['telepon'],
-                'logo_perusahaan'    => null,
-                'alamat_perusahaan'  => $data['alamat'],
-                'dibuat_pada'        => now(),
-                'diperbarui_pada'    => now(),
+                'id_user_perusahaan'  => $userId,
+                'nama_perusahaan'     => $item['nama_perusahaan'],
+                'email_perusahaan'    => $item['email_perusahaan'],
+                'telepon_perusahaan'  => $item['telepon_perusahaan'],
+                'nama_perwakilan'     => $item['nama_perwakilan'],
+                'email_perwakilan'    => $item['email_perwakilan'],
+                'telepon_perwakilan'  => $item['telepon_perwakilan'],
+                'logo_perusahaan'     => null,
+                'alamat_perusahaan'   => $item['alamat_perusahaan'],
+                'dibuat_pada'         => $now,
+                'diperbarui_pada'     => $now,
             ]);
-
-            $insertedCount++;
         }
 
-        $this->command->info("✓ Perusahaan seeder completed!");
-        $this->command->info("  - Berhasil ditambahkan: {$insertedCount} perusahaan");
-        if ($skippedCount > 0) {
-            $this->command->warn("  - Dilewati (duplikat): {$skippedCount}");
-        }
-
-        // Preview
-        $preview = DB::table('perusahaan')
-            ->join('users', 'perusahaan.id_user_perusahaan', '=', 'users.id_user')
-            ->select(
-                'perusahaan.id_perusahaan',
-                'users.nama as nama_perusahaan',
-                'users.email as email_perusahaan',
-                'users.no_hp as telepon_perusahaan',
-                'perusahaan.nama_perwakilan',
-                'perusahaan.email_perwakilan'
-            )
-            ->limit(5)
-            ->get();
-
-        if ($preview->isNotEmpty()) {
-            $tableData = $preview->map(fn($r) => [
-                $r->id_perusahaan,
-                $r->nama_perusahaan,
-                $r->email_perusahaan,
-                $r->telepon_perusahaan,
-                $r->nama_perwakilan,
-                $r->email_perwakilan,
-            ])->toArray();
-
-            $this->command->table(
-                ['ID', 'Nama Perusahaan', 'Email Perusahaan', 'Telepon', 'Perwakilan', 'Email Perwakilan'],
-                $tableData
-            );
-        }
+        // Reset auto increment kedua tabel
+        DB::statement('ALTER TABLE users AUTO_INCREMENT = 43;');
+        DB::statement('ALTER TABLE perusahaan AUTO_INCREMENT = 21;');
     }
 }

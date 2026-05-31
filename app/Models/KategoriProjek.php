@@ -7,7 +7,7 @@ use Illuminate\Database\Eloquent\Model;
 class KategoriProjek extends Model
 {
     protected $table      = 'kategori_projek';
-    protected $primaryKey = 'id_kategori_projek'; // ✅ sesuai migration
+    protected $primaryKey = 'id_kategori_projek'; //  sesuai migration
 
     protected $fillable = [
         'nama_kategori',

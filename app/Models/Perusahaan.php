@@ -32,9 +32,6 @@ class Perusahaan extends Model
         'diperbarui_pada' => 'datetime',
     ];
 
-    // =========================================================
-    // MODEL EVENTS — Sinkronisasi otomatis ke tabel users
-    // =========================================================
     protected static function booted(): void
     {
         // Saat perusahaan dibuat → buat/update user terkait

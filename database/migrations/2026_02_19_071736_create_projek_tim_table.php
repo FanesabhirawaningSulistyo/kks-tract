@@ -15,7 +15,7 @@ return new class extends Migration
             $table->timestamp('dibuat_pada')->useCurrent();
             $table->timestamp('diperbarui_pada')->useCurrent()->useCurrentOnUpdate();
 
-            // Mencegah 1 user masuk tim yang sama lebih dari sekali
+    
             $table->unique(['id_projek', 'id_user']);
 
             // FK ke projek
